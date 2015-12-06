@@ -153,7 +153,7 @@ package object models {
         self: Table[T] with Columns.OwnerId[T] =>
 
         def owner =
-          foreignKey("fk_owner", ownerId, users)(_.id)
+          foreignKey("fk_owner", ownerId, users)(_.id.?)
       }
 
       /**
