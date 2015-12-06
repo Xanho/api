@@ -34,6 +34,17 @@ package object models {
     TableQuery[school.Microdegrees]
 
   /**
+    * The [[TableQuery]] for [[school.MicrodegreeRevisions]]
+    */
+  val microdegreeRevisions =
+    TableQuery[school.MicrodegreeRevisions]
+
+  /**
+    * The [[TableQuery]] for [[school.MicrodegreeRevisionProposals]]
+    */
+  val microdegreeRevisionProposals =
+    TableQuery[school.MicrodegreeRevisionProposals]
+  /**
     * Support methods for Models
     */
   object Helpers {
@@ -128,6 +139,17 @@ package object models {
       }
 
       /**
+        * A Microdegree ID Column
+        * @tparam T Type bound on [[Table]]
+        */
+      trait MicrodegreeId[T] {
+        self: Table[T] =>
+
+        def microdegreeId =
+          column[String]("microdegree_id")
+      }
+
+      /**
         * A Proposal ID Column
         * @tparam T Type bound on [[Table]]
         */
@@ -176,6 +198,17 @@ package object models {
 
         def topic =
           foreignKey("fk_topic", topicId, topics)(_.id)
+      }
+
+      /**
+        * Represents a FK to a [[Microdegree]]
+        * @tparam T Type bound on [[Table]]
+        */
+      trait Microdegree[T] {
+        self: Table[T] with Columns.MicrodegreeId[T] =>
+
+        def topic =
+          foreignKey("fk_microdegree", microdegreeId, microdegrees)(_.id)
       }
 
     }
