@@ -44,6 +44,13 @@ package object models {
     */
   val microdegreeRevisionProposals =
     TableQuery[school.MicrodegreeRevisionProposals]
+
+  /**
+    * The [[TableQuery]] for [[school.TopicRequirements]]
+    */
+  val topicRequirements =
+    TableQuery[school.TopicRequirements]
+
   /**
     * Support methods for Models
     */
