@@ -1,5 +1,7 @@
 package models.school
 
+import java.util.UUID
+
 import models.Helpers.{Columns, ForeignKeys}
 import models._
 import slick.driver.MySQLDriver.api._
@@ -11,9 +13,9 @@ import slick.driver.MySQLDriver.api._
   * @param ownerId The optional [[models.User]] owner of this microdegree.  If [[None]], then
   *                this microdegree is considered to be owned by the public.
   */
-case class Microdegree(id: String,
-                 name: String,
-                 ownerId: Option[String])
+case class Microdegree(id: UUID,
+                       name: String,
+                       ownerId: Option[UUID])
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[Microdegree]]s
@@ -41,10 +43,10 @@ class Microdegrees(tag: Tag)
   * @param microdegreeId @see [[Microdegree.id]]
   * @param proposalId @see [[MicrodegreeRevisionProposal.id]]
   */
-case class MicrodegreeRevision(id: String,
-                         revisionNumber: Int,
-                         microdegreeId: String,
-                         proposalId: String)
+case class MicrodegreeRevision(id: UUID,
+                               revisionNumber: Int,
+                               microdegreeId: UUID,
+                               proposalId: UUID)
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[MicrodegreeRevision]]s
@@ -79,10 +81,10 @@ class MicrodegreeRevisions(tag: Tag)
   *                          For example, if the currently active revision number is 19, then the newRevisionNumber would be 20
   * @param content The microdegree's content and materials
   */
-case class MicrodegreeRevisionProposal(id: String,
-                                 microdegreeId: String,
-                                 newRevisionNumber: Int,
-                                 content: String)
+case class MicrodegreeRevisionProposal(id: UUID,
+                                       microdegreeId: UUID,
+                                       newRevisionNumber: Int,
+                                       content: String)
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[MicrodegreeRevisionProposal]]s
@@ -119,9 +121,9 @@ class MicrodegreeRevisionProposals(tag: Tag)
   * @param minimumRevision @see [[TopicRevision.revisionNumber]]
   * @param maximumRevision @see [[TopicRevision.revisionNumber]]
   */
-case class TopicRequirement(id: String,
-                            proposalId: String,
-                            topicId: String,
+case class TopicRequirement(id: UUID,
+                            proposalId: UUID,
+                            topicId: UUID,
                             minimumRevision: Option[Int],
                             maximumRevision: Option[Int])
 

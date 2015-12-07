@@ -1,8 +1,10 @@
 package models
 
+import java.util.UUID
+
+import com.github.t3hnar.bcrypt._
 import models.Helpers.Columns
 import slick.driver.MySQLDriver.api._
-import com.github.t3hnar.bcrypt._
 
 /**
   * A Xanho User/Member
@@ -12,7 +14,7 @@ import com.github.t3hnar.bcrypt._
   * @param email The user's email address
   * @param boxcode The user's boxcode
   */
-case class User(id: String,
+case class User(id: UUID,
                 firstName: String,
                 lastName: String,
                 email: String,
@@ -65,6 +67,6 @@ class Users(tag: Tag)
     * @see [[slick.profile.RelationalTableComponent.Table.*]]
     */
   def * =
-    (id, firstName, lastName, email, boxcode) <> (User.tupled, User.unapply)
+    (id, firstName, lastName, email, boxcode) <>(User.tupled, User.unapply)
 
 }

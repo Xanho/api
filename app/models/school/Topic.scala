@@ -1,5 +1,7 @@
 package models.school
 
+import java.util.UUID
+
 import models.Helpers.{Columns, ForeignKeys}
 import models._
 import slick.driver.MySQLDriver.api._
@@ -11,9 +13,12 @@ import slick.driver.MySQLDriver.api._
   * @param ownerId The optional [[models.User]] owner of this topic.  If [[None]], then
   *                this topic is considered to be owned by the public.
   */
-case class Topic(id: String,
+case class Topic(id: UUID,
                  name: String,
-                 ownerId: Option[String])
+                 ownerId: Option[UUID]) {
+  lazy val owner =
+    ownerId map (oid => (users filter (_.id === oid)).result.head)
+}
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[Topic]]s
@@ -41,10 +46,10 @@ class Topics(tag: Tag)
   * @param topicId @see [[Topic.id]]
   * @param proposalId @see [[TopicRevisionProposal.id]]
   */
-case class TopicRevision(id: String,
+case class TopicRevision(id: UUID,
                          revisionNumber: Int,
-                         topicId: String,
-                         proposalId: String)
+                         topicId: UUID,
+                         proposalId: UUID)
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[TopicRevision]]s
@@ -76,8 +81,8 @@ class TopicRevisions(tag: Tag)
   *                          For example, if the currently active revision number is 19, then the newRevisionNumber would be 20
   * @param content The topic's content and materials
   */
-case class TopicRevisionProposal(id: String,
-                                 topicId: String,
+case class TopicRevisionProposal(id: UUID,
+                                 topicId: UUID,
                                  newRevisionNumber: Int,
                                  content: String)
 

@@ -1,4 +1,6 @@
 
+import java.util.UUID
+
 import slick.driver.MySQLDriver.api._
 
 package object models {
@@ -76,7 +78,7 @@ package object models {
         self: Table[T] =>
 
         def id =
-          column[String]("id", O.PrimaryKey, O.Default[String](uuid4))
+          column[UUID]("id", O.PrimaryKey, O.Default[UUID](java.util.UUID.randomUUID()))
       }
 
       /**
@@ -98,7 +100,7 @@ package object models {
         self: Table[T] =>
 
         def ownerId =
-          column[Option[String]]("owner_id")
+          column[Option[UUID]]("owner_id")
       }
 
       /**
@@ -109,7 +111,7 @@ package object models {
         self: Table[T] =>
 
         def authorId =
-          column[String]("author_id")
+          column[UUID]("author_id")
       }
 
       /**
@@ -142,7 +144,7 @@ package object models {
         self: Table[T] =>
 
         def topicId =
-          column[String]("topic_id")
+          column[UUID]("topic_id")
       }
 
       /**
@@ -153,7 +155,7 @@ package object models {
         self: Table[T] =>
 
         def microdegreeId =
-          column[String]("microdegree_id")
+          column[UUID]("microdegree_id")
       }
 
       /**
@@ -164,7 +166,7 @@ package object models {
         self: Table[T] =>
 
         def proposalId =
-          column[String]("proposal_id")
+          column[UUID]("proposal_id")
       }
 
     }
