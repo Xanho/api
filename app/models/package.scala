@@ -53,6 +53,9 @@ package object models {
   val topicRequirements =
     TableQuery[school.TopicRequirements]
 
+  val db =
+    Database.forConfig("default")
+
   /**
     * Support methods for Models
     */

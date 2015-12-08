@@ -4,6 +4,7 @@ import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
 import models._
+import models.helpers.OptionallyOwnable
 import slick.driver.MySQLDriver.api._
 
 /**
@@ -15,7 +16,7 @@ import slick.driver.MySQLDriver.api._
   */
 case class Microdegree(id: UUID,
                        name: String,
-                       ownerId: Option[UUID])
+                       ownerId: Option[UUID]) extends OptionallyOwnable
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[Microdegree]]s
