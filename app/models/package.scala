@@ -53,7 +53,22 @@ package object models {
   val topicRequirements =
     TableQuery[school.TopicRequirements]
 
-  val db =
+  /**
+    * The [[TableQuery]] for [[research.Projects]]
+    */
+  val projects =
+    TableQuery[research.Projects]
+
+  /**
+    * The [[TableQuery]] for [[research.ProjectDrafts]]
+    */
+  val projectDrafts =
+    TableQuery[research.ProjectDrafts]
+
+  /**
+    * Shared DB reference
+    */
+  def db =
     Database.forConfig("default")
 
   /**
