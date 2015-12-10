@@ -3,7 +3,7 @@ package models.school
 import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
-import models._
+import models.helpers.OptionallyOwnable
 import slick.driver.MySQLDriver.api._
 
 /**
@@ -15,10 +15,7 @@ import slick.driver.MySQLDriver.api._
   */
 case class Topic(id: UUID,
                  name: String,
-                 ownerId: Option[UUID]) {
-  lazy val owner =
-    ownerId map (oid => (users filter (_.id === oid)).result.head)
-}
+                 ownerId: Option[UUID]) extends OptionallyOwnable
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[Topic]]s
@@ -28,8 +25,8 @@ class Topics(tag: Tag)
   extends Table[Topic](tag, "topics")
   with Columns.Id[Topic]
   with Columns.Name[Topic]
-  with Columns.OwnerId[Topic]
-  with ForeignKeys.Owner[Topic] {
+  with Columns.OptionalOwnerId[Topic]
+  with ForeignKeys.OptionalOwner[Topic] {
 
   /**
     * @see [[slick.profile.RelationalTableComponent.Table.*]]
@@ -69,8 +66,11 @@ class TopicRevisions(tag: Tag)
   def * =
     (id, revisionNumber, topicId, proposalId).<>(TopicRevision.tupled, TopicRevision.unapply)
 
+  /**
+    * Foreign Key to a [[TopicRevisionProposal]]
+    */
   def proposal =
-    foreignKey("fk_proposal", proposalId, topicRevisionProposals)(_.id)
+    foreignKey("fk_proposal", proposalId, tableQueries.topicRevisionProposals)(_.id)
 }
 
 /**
