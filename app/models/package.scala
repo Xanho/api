@@ -3,67 +3,34 @@ import java.util.UUID
 
 import slick.driver.MySQLDriver.api._
 
+import models.{research => researchPO, school => schoolPO}
+
 package object models {
 
   /**
-    * The [[TableQuery]] for [[Users]]
+    * Container object with references to other packages' table queries
     */
-  val users =
-    TableQuery[Users]
+  object tableQueries {
 
-  /**
-    * The [[TableQuery]] for [[school.Topics]]
-    */
-  val topics =
-    TableQuery[school.Topics]
+    /**
+      * @see [[researchPO.tableQueries]]
+      */
+    val research =
+      researchPO.tableQueries
 
-  /**
-    * The [[TableQuery]] for [[school.TopicRevisions]]
-    */
-  val topicRevisions =
-    TableQuery[school.TopicRevisions]
+    /**
+      * @see [[schoolPO.tableQueries]]
+      */
+    val school =
+      schoolPO.tableQueries
 
-  /**
-    * The [[TableQuery]] for [[school.TopicRevisionProposals]]
-    */
-  val topicRevisionProposals =
-    TableQuery[school.TopicRevisionProposals]
+    /**
+      * The [[TableQuery]] for [[Users]]
+      */
+    val users =
+      TableQuery[Users]
 
-  /**
-    * The [[TableQuery]] for [[school.Microdegrees]]
-    */
-  val microdegrees =
-    TableQuery[school.Microdegrees]
-
-  /**
-    * The [[TableQuery]] for [[school.MicrodegreeRevisions]]
-    */
-  val microdegreeRevisions =
-    TableQuery[school.MicrodegreeRevisions]
-
-  /**
-    * The [[TableQuery]] for [[school.MicrodegreeRevisionProposals]]
-    */
-  val microdegreeRevisionProposals =
-    TableQuery[school.MicrodegreeRevisionProposals]
-
-  /**
-    * The [[TableQuery]] for [[school.TopicRequirements]]
-    */
-  val topicRequirements =
-    TableQuery[school.TopicRequirements]
-
-  /**
-    * The [[TableQuery]] for [[research.Projects]]
-    */
-  val projects =
-    TableQuery[research.Projects]
-
-  /**
-    * The [[TableQuery]] for [[research.ProjectDrafts]]
-    */
-  val projectDrafts =
-    TableQuery[research.ProjectDrafts]
+  }
 
   /**
     * Shared DB reference
@@ -111,10 +78,21 @@ package object models {
       }
 
       /**
-        * An Owner ID Column
+        * An Optional Owner ID Column
         * @tparam T Type bound on [[Table]]
         */
       trait OwnerId[T] {
+        self: Table[T] =>
+
+        def ownerId =
+          column[UUID]("owner_id")
+      }
+
+      /**
+        * An Optional Owner ID Column
+        * @tparam T Type bound on [[Table]]
+        */
+      trait OptionalOwnerId[T] {
         self: Table[T] =>
 
         def ownerId =
@@ -202,7 +180,18 @@ package object models {
         self: Table[T] with Columns.OwnerId[T] =>
 
         def owner =
-          foreignKey("fk_owner", ownerId, users)(_.id.?)
+          foreignKey("fk_owner", ownerId, tableQueries.users)(_.id)
+      }
+
+      /**
+        * Represents a FK to an optional owner of something
+        * @tparam T Type bound on [[Table]]
+        */
+      trait OptionalOwner[T] {
+        self: Table[T] with Columns.OptionalOwnerId[T] =>
+
+        def owner =
+          foreignKey("fk_owner", ownerId, tableQueries.users)(_.id.?)
       }
 
       /**
@@ -213,7 +202,7 @@ package object models {
         self: Table[T] with Columns.AuthorId[T] =>
 
         def author =
-          foreignKey("fk_author", authorId, users)(_.id)
+          foreignKey("fk_author", authorId, tableQueries.users)(_.id)
       }
 
       /**
@@ -224,7 +213,7 @@ package object models {
         self: Table[T] with Columns.TopicId[T] =>
 
         def topic =
-          foreignKey("fk_topic", topicId, topics)(_.id)
+          foreignKey("fk_topic", topicId, tableQueries.school.topics)(_.id)
       }
 
       /**
@@ -235,7 +224,7 @@ package object models {
         self: Table[T] with Columns.MicrodegreeId[T] =>
 
         def topic =
-          foreignKey("fk_microdegree", microdegreeId, microdegrees)(_.id)
+          foreignKey("fk_microdegree", microdegreeId, tableQueries.school.microdegrees)(_.id)
       }
 
     }

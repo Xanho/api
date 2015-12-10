@@ -15,7 +15,7 @@ import scala.concurrent.duration.Duration
 trait OptionallyOwnable {
 
   /**
-    * @see [[models.Helpers.Columns.OwnerId]]
+    * @see [[models.Helpers.Columns.OptionalOwnerId]]
     */
   def ownerId: Option[UUID]
 
@@ -23,7 +23,7 @@ trait OptionallyOwnable {
     * The optional [[User]] who owns this entity
     */
   lazy val owner: Option[User] =
-    ownerId map (oid => Await.result(db.run((users filter (_.id === oid)).result.head), Duration.Inf))
+    ownerId map (oid => Await.result(db.run((tableQueries.users filter (_.id === oid)).result.head), Duration.Inf))
 
 }
 
@@ -33,7 +33,7 @@ trait OptionallyOwnable {
 trait Ownable {
 
   /**
-    * @see [[models.Helpers.Columns.OwnerId]]
+    * @see [[models.Helpers.Columns.OptionalOwnerId]]
     */
   def ownerId: UUID
 
@@ -41,6 +41,6 @@ trait Ownable {
     * The [[User]] who owns this entity
     */
   lazy val owner: User =
-    Await.result(db.run((users filter (_.id === ownerId)).result.head), Duration.Inf)
+    Await.result(db.run((tableQueries.users filter (_.id === ownerId)).result.head), Duration.Inf)
 
 }

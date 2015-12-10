@@ -3,7 +3,6 @@ package models.school
 import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
-import models._
 import models.helpers.OptionallyOwnable
 import slick.driver.MySQLDriver.api._
 
@@ -26,8 +25,8 @@ class Microdegrees(tag: Tag)
   extends Table[Microdegree](tag, "microdegrees")
   with Columns.Id[Microdegree]
   with Columns.Name[Microdegree]
-  with Columns.OwnerId[Microdegree]
-  with ForeignKeys.Owner[Microdegree] {
+  with Columns.OptionalOwnerId[Microdegree]
+  with ForeignKeys.OptionalOwner[Microdegree] {
 
   /**
     * @see [[slick.profile.RelationalTableComponent.Table.*]]
@@ -71,7 +70,7 @@ class MicrodegreeRevisions(tag: Tag)
     * The proposal used in this revision
     */
   def proposal =
-    foreignKey("fk_proposal", proposalId, microdegreeRevisionProposals)(_.id)
+    foreignKey("fk_proposal", proposalId, tableQueries.microdegreeRevisionProposals)(_.id)
 }
 
 /**
@@ -162,5 +161,5 @@ class TopicRequirements(tag: Tag)
     * The proposal containing this requirement
     */
   def proposal =
-    foreignKey("fk_proposal", proposalId, microdegreeRevisionProposals)(_.id)
+    foreignKey("fk_proposal", proposalId, tableQueries.microdegreeRevisionProposals)(_.id)
 }
