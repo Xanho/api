@@ -5,7 +5,12 @@ import java.util.UUID
 import models.Helpers.{Columns, ForeignKeys}
 import slick.driver.MySQLDriver.api._
 
+import models._
 import models.helpers.Ownable
+import system.helpers._
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 /**
   * Represents a student or peer's critique of a [[Project]]
@@ -17,7 +22,64 @@ import models.helpers.Ownable
 case class Critique(id: UUID,
                     ownerId: UUID,
                     projectDraftId: UUID,
-                    content: String) extends Ownable
+                    content: String)
+  extends Ownable
+  with Resource {
+
+  /**
+    * The [[ProjectDraft]] being critiqued
+    */
+  lazy val projectDraft: ProjectDraft =
+    Await.result(db.run(tableQueries.projectDrafts.filter(_.id === projectDraftId).result.head), Duration.Inf)
+
+  /**
+    * @inheritdoc
+    */
+  def canRead(userId: Option[UUID]): Boolean =
+    userId.fold(false)(_ == ownerId) || userId.fold(false)(_ == projectDraft.project.ownerId)
+
+  /**
+    * @inheritdoc
+    */
+  def canDelete(userId: Option[UUID]): Boolean =
+    false
+
+  /**
+    * @inheritdoc
+    */
+  def canModify(userId: Option[UUID]): Boolean =
+    false
+}
+
+object Critiques extends ResourceCollection {
+
+  /**
+    * @inheritdoc
+    */
+  def canRead(userId: Option[UUID],
+              resources: Resource*): Boolean =
+    ???
+
+  /**
+    * @inheritdoc
+    */
+  def canDelete(userId: Option[UUID],
+                resources: Resource*): Boolean =
+    ???
+
+  /**
+    * @inheritdoc
+    */
+  def canCreate(userId: Option[UUID]): Boolean =
+    ???
+
+  /**
+    * @inheritdoc
+    */
+  def canModify(userId: Option[UUID],
+                resources: Resource*): Boolean =
+    ???
+}
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[Critique]]s

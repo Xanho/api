@@ -3,6 +3,7 @@ import java.util.UUID
 
 import slick.driver.MySQLDriver.api._
 
+// Note: These package object imports are aliased to disambiguate calls to their corresponding tableQueries
 import models.{research => researchPO, school => schoolPO}
 
 package object models {
