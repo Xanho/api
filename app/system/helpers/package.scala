@@ -3,15 +3,21 @@ package system
 import java.util.UUID
 
 import models.Helpers.Columns
-import models._
 import play.api.Play
+import play.api.db.slick.DatabaseConfigProvider
+import slick.driver.JdbcProfile
 import slick.driver.MySQLDriver.api._
-import slick.lifted.AbstractTable
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 package object helpers {
+
+  /**
+    * Reference to the default Database, providing an easy interface to run queries
+    */
+  def db =
+    DatabaseConfigProvider.get[JdbcProfile](play).db
 
   /**
     * Retrieves the current [[Play]] application
@@ -53,38 +59,32 @@ package object helpers {
       * @tparam R The expected return type
       * @return A [[R]]
       */
-    def queryResult[R](a : slick.dbio.DBIOAction[R, slick.dbio.NoStream, scala.Nothing]): R =
+    def queryResult[R](a: slick.dbio.DBIOAction[R, slick.dbio.NoStream, scala.Nothing]): R =
       Await.result(db.run(a), DefaultConfiguration.queryTimeout)
 
     /**
-      * Given a foreign [[TableQuery]] which implements [[Columns.Id]],
-      * retrieves the foreign record with the given Local ID
+      * Retrieves a foreign row from a foreign table corresponding to the given tableQuery
       * @param tableQuery The "foreign" table referenced by a column in the "local" or current table
-      * @param localId The ID in the local table which references the ID in tableQuery
-      * @tparam E Type bound on a [[TableQuery]] requiring [[Columns.Id]]
-      * @return An entity of the type of the row type of the tableQuery
+      * @param localId The optional ID in the local table which references the ID in tableQuery
+      * @tparam T Type bound used for the TableQuery to ensure the table has an ID column
+      * @tparam E The type of the [[Table]]
+      * @return An optional [[T#TableElementType]]
       */
-//    def fkResult[E <: Table[_] with Columns.Id[_]](tableQuery: TableQuery[E],
-//    def fkResult[E](tableQuery: slick.driver.MySQLDriver.api.TableQuery[Table[E] with Columns.Id[E]],
-//                                                      localId: UUID): Table[E]#TableElementType =
-//      SlickHelper.queryResult((tableQuery filter (_.id === localId)).result.head)
     def fkResult[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T],
                                                       localId: UUID): T#TableElementType =
       SlickHelper.queryResult((tableQuery filter (_.id === localId)).result.head)
-//      SlickHelper.queryResult((tableQuery filter (_.id === localId)).result.head)
+
     /**
       * @see [[fkResult]], except with an optional local ID
       * @param tableQuery The "foreign" table referenced by a column in the "local" or current table
       * @param localId The optional ID in the local table which references the ID in tableQuery
-      * @tparam E Type bound on a [[TableQuery]] requiring [[Columns.Id]]
-      * @return An optional entity of the type of the row type of the tableQuery
+      * @tparam T Type bound used for the TableQuery to ensure the table has an ID column
+      * @tparam E The type of the [[Table]]
+      * @return An optional [[T#TableElementType]]
       */
-//    def optionFkResult[E](tableQuery: slick.driver.MySQLDriver.api.TableQuery[Table[E] with Columns.Id[E]],
-//                          localId: Option[UUID]): Option[Table[E]#TableElementType] =
     def optionFkResult[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T],
                                                             localId: Option[UUID]): Option[T#TableElementType] =
-      localId map (lid => fkResult[T, E](tableQuery, lid))
-//      localId map (fkResult(tableQuery, _))
+      localId map (fkResult[T, E](tableQuery, _))
 
     /**
       * Helper class which allows for treating UUIDs as foreign key reference columns
@@ -92,11 +92,8 @@ package object helpers {
       */
     implicit class FKUUID(uuid: UUID) {
 
-//      def fk[E](tableQuery: TableQuery[Table[E] with Columns.Id[E]]): Table[E]#TableElementType =
       def fk[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T]): T#TableElementType =
         fkResult[T, E](tableQuery, uuid)
-//      def fk[E <: Table[_] with Columns.Id[_]](tableQuery: TableQuery[E]): E#TableElementType =
-//        fkResult(tableQuery, uuid)
 
     }
 

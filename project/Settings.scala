@@ -74,7 +74,6 @@ object Settings {
 
     val library =
       Seq(
-        jdbc,
         cache,
         ws,
         specs2 % Test,

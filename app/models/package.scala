@@ -34,12 +34,6 @@ package object models {
   }
 
   /**
-    * Shared DB reference
-    */
-  def db =
-    Database.forConfig("default")
-
-  /**
     * Support methods for Models
     */
   object Helpers {
