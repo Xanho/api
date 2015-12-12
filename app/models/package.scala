@@ -28,7 +28,7 @@ package object models {
     /**
       * The [[TableQuery]] for [[Users]]
       */
-    val users =
+    val users: TableQuery[Users] =
       TableQuery[Users]
 
   }

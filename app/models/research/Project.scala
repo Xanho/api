@@ -3,12 +3,9 @@ package models.research
 import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
-import models._
 import models.helpers.Ownable
 import slick.driver.MySQLDriver.api._
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import system.helpers.SlickHelper._
 
 /**
   * Represents a Research Project, which consists of a series of drafts
@@ -49,10 +46,10 @@ case class ProjectDraft(id: UUID,
                         content: String) {
 
   /**
-    * The [[User]] who owns this entity
+    * The [[Project]] to which this draft belongs
     */
   lazy val project: Project =
-    Await.result(db.run((tableQueries.projects filter (_.id === projectId)).result.head), Duration.Inf)
+    projectId.fk[Projects, Project](tableQueries.projects)
 
 }
 

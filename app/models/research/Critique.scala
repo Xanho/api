@@ -3,14 +3,10 @@ package models.research
 import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
-import slick.driver.MySQLDriver.api._
-
-import models._
 import models.helpers.Ownable
+import slick.driver.MySQLDriver.api._
 import system.helpers._
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import system.helpers.SlickHelper._
 
 /**
   * Represents a student or peer's critique of a [[Project]]
@@ -22,15 +18,13 @@ import scala.concurrent.duration.Duration
 case class Critique(id: UUID,
                     ownerId: UUID,
                     projectDraftId: UUID,
-                    content: String)
-  extends Ownable
-  with Resource {
+                    content: String) extends Ownable with Resource {
 
   /**
     * The [[ProjectDraft]] being critiqued
     */
   lazy val projectDraft: ProjectDraft =
-    Await.result(db.run(tableQueries.projectDrafts.filter(_.id === projectDraftId).result.head), Duration.Inf)
+    projectDraftId.fk[ProjectDrafts, ProjectDraft](tableQueries.projectDrafts)
 
   /**
     * @inheritdoc

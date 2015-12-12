@@ -5,6 +5,7 @@ import java.util.UUID
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.Ownable
 import slick.driver.MySQLDriver.api._
+import system.helpers.SlickHelper._
 
 /**
   * Represents a student or peer's peerReview of a [[Project]]
@@ -16,7 +17,14 @@ import slick.driver.MySQLDriver.api._
 case class PeerReview(id: UUID,
                       ownerId: UUID,
                       projectDraftId: UUID,
-                      content: String) extends Ownable
+                      content: String) extends Ownable {
+
+  /**
+    * The [[ProjectDraft]] being reviewed
+    */
+  lazy val projectDraft: ProjectDraft =
+    projectDraftId.fk[ProjectDrafts, ProjectDraft](tableQueries.projectDrafts)
+}
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[PeerReview]]s
