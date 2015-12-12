@@ -2,12 +2,8 @@ package models.helpers
 
 import java.util.UUID
 
-import slick.driver.MySQLDriver.api._
-
-import models._
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import models.{tableQueries, _}
+import system.helpers.SlickHelper._
 
 /**
   * An entity which can be owned by a [[models.User]]
@@ -23,7 +19,8 @@ trait OptionallyOwnable {
     * The optional [[User]] who owns this entity
     */
   lazy val owner: Option[User] =
-    ownerId map (oid => Await.result(db.run((tableQueries.users filter (_.id === oid)).result.head), Duration.Inf))
+    ownerId map (_.fk[Users, User](tableQueries.users))
+  //    ownerId map (oid => SlickHelper.fkResult(tableQueries.users, oid))
 
 }
 
@@ -41,6 +38,6 @@ trait Ownable {
     * The [[User]] who owns this entity
     */
   lazy val owner: User =
-    Await.result(db.run((tableQueries.users filter (_.id === ownerId)).result.head), Duration.Inf)
+    ownerId.fk[Users, User](tableQueries.users)
 
 }

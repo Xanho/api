@@ -5,6 +5,7 @@ import java.util.UUID
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.OptionallyOwnable
 import slick.driver.MySQLDriver.api._
+import system.helpers.SlickHelper._
 
 /**
   * Represents a topic or unit, which covers a specific area
@@ -41,12 +42,26 @@ class Topics(tag: Tag)
   * @param id The revision's ID
   * @param revisionNumber The revision number
   * @param topicId @see [[Topic.id]]
-  * @param proposalId @see [[TopicRevisionProposal.id]]
+  * @param topicRevisionProposalId @see [[TopicRevisionProposal.id]]
   */
 case class TopicRevision(id: UUID,
                          revisionNumber: Int,
                          topicId: UUID,
-                         proposalId: UUID)
+                         topicRevisionProposalId: UUID) {
+
+  /**
+    * The parent [[Topic]] of this revision
+    */
+  lazy val topic: Topic =
+    topicId.fk[Topics, Topic](tableQueries.topics)
+
+  /**
+    * The parent [[TopicRevisionProposal]] of this revision
+    */
+  lazy val topicRevisionProposal: TopicRevisionProposal =
+    topicRevisionProposalId.fk[TopicRevisionProposals, TopicRevisionProposal](tableQueries.topicRevisionProposals)
+
+}
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[TopicRevision]]s
@@ -84,7 +99,15 @@ class TopicRevisions(tag: Tag)
 case class TopicRevisionProposal(id: UUID,
                                  topicId: UUID,
                                  newRevisionNumber: Int,
-                                 content: String)
+                                 content: String) {
+
+  /**
+    * The parent [[Topic]] of this revision
+    */
+  lazy val topic: Topic =
+    topicId.fk[Topics, Topic](tableQueries.topics)
+
+}
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[TopicRevisionProposal]]s

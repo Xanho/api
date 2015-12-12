@@ -3,6 +3,7 @@ import java.util.UUID
 
 import slick.driver.MySQLDriver.api._
 
+// Note: These package object imports are aliased to disambiguate calls to their corresponding tableQueries
 import models.{research => researchPO, school => schoolPO}
 
 package object models {
@@ -27,16 +28,10 @@ package object models {
     /**
       * The [[TableQuery]] for [[Users]]
       */
-    val users =
+    val users: TableQuery[Users] =
       TableQuery[Users]
 
   }
-
-  /**
-    * Shared DB reference
-    */
-  def db =
-    Database.forConfig("default")
 
   /**
     * Support methods for Models

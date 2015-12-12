@@ -5,6 +5,7 @@ import java.util.UUID
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.OptionallyOwnable
 import slick.driver.MySQLDriver.api._
+import system.helpers.SlickHelper._
 
 /**
   * Represents a microdegree or unit, which covers a specific area
@@ -46,7 +47,21 @@ class Microdegrees(tag: Tag)
 case class MicrodegreeRevision(id: UUID,
                                revisionNumber: Int,
                                microdegreeId: UUID,
-                               proposalId: UUID)
+                               proposalId: UUID) {
+
+  /**
+    * The parent [[Microdegree]] of this revision
+    */
+  lazy val microdegree: Microdegree =
+    microdegreeId.fk[Microdegrees, Microdegree](tableQueries.microdegrees)
+
+  /**
+    * The [[MicrodegreeRevisionProposal]] used for this revision
+    */
+  lazy val microdegreeRevisionProposal: MicrodegreeRevisionProposal =
+    proposalId.fk[MicrodegreeRevisionProposals, MicrodegreeRevisionProposal](tableQueries.microdegreeRevisionProposals)
+
+}
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[MicrodegreeRevision]]s
@@ -84,7 +99,15 @@ class MicrodegreeRevisions(tag: Tag)
 case class MicrodegreeRevisionProposal(id: UUID,
                                        microdegreeId: UUID,
                                        newRevisionNumber: Int,
-                                       content: String)
+                                       content: String) {
+
+  /**
+    * The parent [[Microdegree]] of this revision
+    */
+  lazy val microdegree: Microdegree =
+    microdegreeId.fk[Microdegrees, Microdegree](tableQueries.microdegrees)
+
+}
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[MicrodegreeRevisionProposal]]s
@@ -116,16 +139,30 @@ class MicrodegreeRevisionProposals(tag: Tag)
 /**
   * Represents a Topic Requirement for completion of a Microdegree
   * @param id The requirement ID
-  * @param proposalId @see [[MicrodegreeRevisionProposal.id]]
+  * @param microdegreeRevisionProposalId @see [[MicrodegreeRevisionProposal.id]]
   * @param topicId @see [[Topic.id]]
   * @param minimumRevision @see [[TopicRevision.revisionNumber]]
   * @param maximumRevision @see [[TopicRevision.revisionNumber]]
   */
 case class TopicRequirement(id: UUID,
-                            proposalId: UUID,
+                            microdegreeRevisionProposalId: UUID,
                             topicId: UUID,
                             minimumRevision: Option[Int],
-                            maximumRevision: Option[Int])
+                            maximumRevision: Option[Int]) {
+
+  /**
+    * The [[MicrodegreeRevisionProposal]] in which this requirement is used
+    */
+  lazy val microdegreeRevisionProposal: MicrodegreeRevisionProposal =
+    microdegreeRevisionProposalId.fk[MicrodegreeRevisionProposals, MicrodegreeRevisionProposal](tableQueries.microdegreeRevisionProposals)
+
+  /**
+    * The [[Topic]] used for this revision
+    */
+  lazy val topic: Topic =
+    topicId.fk[Topics, Topic](tableQueries.topics)
+
+}
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[TopicRequirement]]s
