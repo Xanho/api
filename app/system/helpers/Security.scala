@@ -37,12 +37,12 @@ case class Authorized(resourceId: Option[UUID],
   /**
     *
     * @inheritdoc
-    * Ensures that for all of the [[authorizers]], the (optional) is authorized to access the [[resourceId]].
+    * Ensures that for all of the [[authorizers]], the (optional) user is authorized to access the [[resourceId]].
     * If so, continues on with a [[RichRequest]] and refreshed the JWT Session Token
     * @param request The incoming request
     * @param block Transformer from the request to a result
     * @tparam A @see [[Request#A]]
-    * @return A [[Future]] [[Result]]
+    * @return A [[Future]]: [[Unauthorized]] or [[InternalServerError]] or [[]]
     */
   def invokeBlock[A](request: Request[A],
                      block: Request[A] => Future[Result]): Future[Result] = {
@@ -54,7 +54,8 @@ case class Authorized(resourceId: Option[UUID],
       parseBody(request.body) ++
         JsObject(request.queryString map (kv => kv._1 -> Json.toJson(kv._2.mkString))) ++
         JsObject(pathParameters map (kv => kv._1 -> Json.toJson(kv._2))) ++
-        JsObject(request.headers.toMap.map(kv => kv._1 -> Json.toJson(kv._2.mkString)))
+        JsObject(request.headers.toMap.map(kv => kv._1 -> Json.toJson(kv._2.mkString))) ++
+        Json.obj("userId" -> userId)
 
     Try(authorizers forall (authorizer => authorizer(userId, resourceId, data))) match {
       case Success(true) =>

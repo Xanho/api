@@ -4,10 +4,8 @@ import java.util.UUID
 
 import com.github.t3hnar.bcrypt._
 import models.Helpers.Columns
-import play.api.libs.json.{JsValue, Writes, JsObject, Json}
+import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import slick.driver.MySQLDriver.api._
-import system.helpers.PropertyValidators.PropertyErrorCodes
-import system.helpers.ResponseHelpers.PropertyErrorCodes
 import system.helpers.{PropertyValidators, ResourceCollection, SlickHelper}
 
 /**
@@ -97,35 +95,40 @@ object Users extends ResourceCollection[User, Users] {
         )
     }
 
+  /**
+    * @inheritdoc
+    * @param arguments The arguments to be validated
+    * @return A invalid property mapping from a property name to an error status
+    */
   def validateArguments(arguments: Map[String, JsValue]) =
-      Map(
-        "firstName" -> PropertyValidators.validate("firstName", arguments, true, PropertyValidators.name),
-        "lastName" -> PropertyValidators.validate("lastName", arguments, true, PropertyValidators.name),
-        "email" -> PropertyValidators.validate("email", arguments, true, PropertyValidators.email),
-        "password" -> PropertyValidators.validate("password", arguments, true, PropertyValidators.password)
-      ) collect {
-        case (key, Some(value)) =>
-          key -> value
-      }
+    Map(
+      "firstName" -> PropertyValidators.validate("firstName", arguments, true, PropertyValidators.name),
+      "lastName" -> PropertyValidators.validate("lastName", arguments, true, PropertyValidators.name),
+      "email" -> PropertyValidators.validate("email", arguments, true, PropertyValidators.email),
+      "password" -> PropertyValidators.validate("password", arguments, true, PropertyValidators.password)
+    ) collect {
+      case (key, Some(value)) =>
+        key -> value
+    }
 
   /**
     * @inheritdoc
     * @param fields The arguments to create a [[User]]
     * @return An optional [[User]]
     */
-  def create(fields: Map[String, Any]): Option[User] = {
+  def create(fields: Map[String, JsValue]): Option[User] = {
     val uuid =
-      java.util.UUID.randomUUID()
+      system.helpers.uuid
 
     if (
       SlickHelper.queryResult(
         tableQueries.users +=
           User(
             uuid,
-            fields("firstName").asInstanceOf[String],
-            fields("lastName").asInstanceOf[String],
-            fields("email").asInstanceOf[String],
-            fields("boxcode").asInstanceOf[String]
+            fields("firstName").as[String],
+            fields("lastName").as[String],
+            fields("email").as[String],
+            fields("boxcode").as[String]
           )
       ) > 0
     )
@@ -141,7 +144,7 @@ object Users extends ResourceCollection[User, Users] {
     * @return true if successful, false otherwise
     */
   def update(id: UUID,
-             arguments: Map[String, Any]): Boolean =
+             arguments: Map[String, JsValue]): Boolean =
     read(id)
       .map(row =>
         SlickHelper.queryResult(
@@ -151,13 +154,13 @@ object Users extends ResourceCollection[User, Users] {
               row.copy(
                 id,
                 arguments.get("firstName")
-                  .fold(row.firstName)(_.asInstanceOf[String]),
+                  .fold(row.firstName)(_.as[String]),
                 arguments.get("lastName")
-                  .fold(row.firstName)(_.asInstanceOf[String]),
+                  .fold(row.firstName)(_.as[String]),
                 arguments.get("email")
-                  .fold(row.firstName)(_.asInstanceOf[String]),
+                  .fold(row.firstName)(_.as[String]),
                 arguments.get("boxcode")
-                  .fold(row.firstName)(_.asInstanceOf[String])
+                  .fold(row.firstName)(_.as[String])
               )
             )
         )

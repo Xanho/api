@@ -39,6 +39,12 @@ package object helpers {
       .getOrElse(default)
 
   /**
+    * Generates a new [[java.util.UUID]]
+    */
+  def uuid =
+    java.util.UUID.randomUUID()
+
+  /**
     * Configuration helpers from the current [[play.configuration]] which attempt to read from application.conf,
     * with defaults in case they can't be found
     */

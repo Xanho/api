@@ -17,10 +17,10 @@ object ResponseHelpers {
   /**
    * Creates an invalidFields Json Object,
    * which contains a list of fields that were invalid upon form input
-   * @param fieldNames The names of the fields which were invalid
+   * @param fields A mapping from an invalid field's name to its error code
    * @return
    */
-  def invalidFields(fieldNames: Traversable[String]): JsObject =
-    Json.obj("invalidFields" -> fieldNames)
+  def invalidFields(fields: Map[String, Int]): JsObject =
+    Json.obj("invalidFields" -> Json.toJson(fields))
 
 }

@@ -45,14 +45,14 @@ trait ResourceCollection[R <: Resource, T <: Table[R] with Columns.Id[R]] {
     * @param arguments The arguments to be validated
     * @return A invalid property mapping from a property name to an error status
     */
-  def validateArguments(arguments: Map[String, Any]): Map[String, Int]
+  def validateArguments(arguments: Map[String, JsValue]): Map[String, Int]
 
   /**
     * Creates a [[R]] with the given arguments
     * @param arguments A key-value argument pair
     * @return An optional [[R]]
     */
-  def create(arguments: Map[String, Any]): Option[R]
+  def create(arguments: Map[String, JsValue]): Option[R]
 
   /**
     * Retrieves the [[R]] with the given ID
@@ -77,7 +77,7 @@ trait ResourceCollection[R <: Resource, T <: Table[R] with Columns.Id[R]] {
     * @return true if successful, false otherwise
     */
   def update(id: UUID,
-             arguments: Map[String, Any]): Boolean
+             arguments: Map[String, JsValue]): Boolean
 
   /**
     * Dictates if the user with the given ID is allowed READ access to the resource with the given ID
