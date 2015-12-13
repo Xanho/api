@@ -4,9 +4,12 @@ import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.Ownable
+import play.api.libs.json.{JsObject, Json}
 import slick.driver.MySQLDriver.api._
-import system.helpers._
 import system.helpers.SlickHelper._
+import system.helpers._
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * Represents a student or peer's critique of a [[Project]]
@@ -50,29 +53,41 @@ object Critiques extends ResourceCollection {
   /**
     * @inheritdoc
     */
-  def canRead(userId: Option[UUID],
-              resources: Resource*): Boolean =
-    ???
+  def canRead(resourceId: UUID,
+              userId: Option[UUID],
+              data: JsObject = Json.obj()): Boolean =
+    Try(resourceId.toInstance[Critiques, Critique](tableQueries.critiques)) match {
+      case Success(instance) =>
+        userId.fold(false)(_ == instance.ownerId) ||
+          userId.fold(false)(_ == instance.projectDraft.project.ownerId)
+      case Failure(_) =>
+        false
+    }
 
   /**
     * @inheritdoc
     */
-  def canDelete(userId: Option[UUID],
-                resources: Resource*): Boolean =
-    ???
+  def canDelete(resourceId: UUID,
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
 
   /**
     * @inheritdoc
     */
-  def canCreate(userId: Option[UUID]): Boolean =
-    ???
+  def canModify(resourceId: UUID,
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
 
   /**
     * @inheritdoc
     */
-  def canModify(userId: Option[UUID],
-                resources: Resource*): Boolean =
-    ???
+  def canCreate(userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    userId.nonEmpty
+
+
 }
 
 /**

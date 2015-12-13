@@ -20,7 +20,6 @@ trait OptionallyOwnable {
     */
   lazy val owner: Option[User] =
     ownerId map (_.fk[Users, User](tableQueries.users))
-  //    ownerId map (oid => SlickHelper.fkResult(tableQueries.users, oid))
 
 }
 

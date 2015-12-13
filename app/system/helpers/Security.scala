@@ -1,105 +1,88 @@
-//package system.helpers
-//
-//import scala.concurrent.Future
-//import play.api.libs.concurrent.Execution.Implicits._
-//
-//import play.api.mvc._
-//import play.api.mvc.Results._
-//import play.api.libs.json._
-//
-//import pdi.jwt._
-//
-//import models.{User, UserModel}
-//import models.UserModel._
-//
-///**
-// * A class which wraps a request with a [[User]] object
-// * @param user The [[User]] making the [[Request]]
-// * @param request The [[Request]] being made
-// * @tparam A
-// */
-//class AuthenticatedRequest[A](val user: User,
-//                              request: Request[A]) extends WrappedRequest[A](request)
-//
-///**
-// * Provides an access layer to [[AuthenticatedAction]] and [[AdminAction]]
-// */
-//trait Secured {
-//  def Public = PublicAction
-//  def Authenticated = AuthenticatedAction
-//  def Admin = AdminAction
-//}
-//
-//
-//
-//object PublicAction extends ActionBuilder[Request] {
-//  /**
-//   * @inheritdoc
-//   */
-//  def invokeBlock[A](request: Request[A],
-//                     block: Request[A] => Future[Result]) = {
-//    request.jwtSession.getAs[JsObject]("user")
-//      .flatMap((u: JsObject) => (u \ "id").asOpt[Int]) match {
-//      case Some(id: Int) =>
-//        UserModel.get(id) match {
-//          case Some(user: User) =>
-//            block(new AuthenticatedRequest(user, request)).map(_.refreshJwtSession(request))
-//          case _ =>
-//            block(request)
-//        }
-//      case _ =>
-//        block(request)
-//    }
-//  }
-//
-//}
-//
-///**
-// * An Action which retrieves the user from a [[JwtSession]], authenticates the action,
-// * and if successful, completes the action
-// */
-//object AuthenticatedAction extends ActionBuilder[AuthenticatedRequest] {
-//  /**
-//   * @inheritdoc
-//   */
-//  def invokeBlock[A](request: Request[A],
-//                     block: AuthenticatedRequest[A] => Future[Result]) = {
-//    request.jwtSession.getAs[JsObject]("user")
-//      .flatMap((u: JsObject) => (u \ "id").asOpt[Int]) match {
-//      case Some(id: Int) =>
-//        UserModel.get(id) match {
-//          case Some(user: User) =>
-//            block(new AuthenticatedRequest(user, request)).map(_.refreshJwtSession(request))
-//          case _ =>
-//            Future.successful(Unauthorized(ResponseHelpers.message("No user matched the claimed ID.")))
-//        }
-//      case _ =>
-//        Future.successful(Unauthorized(ResponseHelpers.message("No user was included in the token's claim.")))
-//    }
-//  }
-//}
-//
-///**
-// * Similar to [[AuthenticatedAction]], except requires the user be an admin
-// */
-//object AdminAction extends ActionBuilder[AuthenticatedRequest] {
-//  /**
-//   * @inheritdoc
-//   */
-//  def invokeBlock[A](request: Request[A],
-//                     block: AuthenticatedRequest[A] => Future[Result]) =
-//    request.jwtSession.getAs[JsObject]("user")
-//      .flatMap((u: JsObject) => (u \ "id").asOpt[Int]) match {
-//      case Some(id: Int) =>
-//        UserModel.get(id) match {
-//          case Some(user: User) if user.isAdmin =>
-//            block(new AuthenticatedRequest(user, request)).map(_.refreshJwtSession(request))
-//          case Some(User(_)) =>
-//            Future.successful(Forbidden(ResponseHelpers.message("You do not have authorization to complete this request")).refreshJwtSession(request))
-//          case _ =>
-//            Future.successful(Unauthorized(ResponseHelpers.message("No user matched the claimed ID.")))
-//        }
-//      case _ =>
-//        Future.successful(Unauthorized(ResponseHelpers.message("No user was included in the token's claim.")))
-//    }
-//}
+package system.helpers
+
+import java.util.UUID
+
+import models.User
+import play.api.http.ContentTypes
+import play.api.libs.json._
+import play.api.mvc.Results._
+import play.api.mvc._
+
+import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
+
+/**
+  * Represents a [[Request]] that contains an optional user ID and the data of the request
+  * @param userId @see [[User.id]]
+  * @param request The base request
+  * @param data A combination of all of the path, query, body, form, and header parameters
+  * @tparam A @see [[Request#A]]
+  */
+case class RichRequest[A](userId: Option[UUID],
+                          request: Request[A],
+                          data: JsObject) extends WrappedRequest[A](request)
+
+/**
+  * Represents an [[Action]] that requires [[Resource]] authorization
+  * @param resourceId @see [[Resource.id]]
+  * @param authorizers A set of functions which determine if the user can access the resource
+  * @param acceptedContentTypes A set of [[ContentTypes]] that the particular route accepts
+  * @param pathParameters Any additional path parameters for the request
+  */
+case class Authorized(resourceId: Option[UUID],
+                      authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean],
+                      acceptedContentTypes: Set[String] = Set(),
+                      pathParameters: Map[String, Any] = Map())(block: RichRequest => Result) extends ActionBuilder[Request] {
+
+  /**
+    *
+    * @inheritdoc
+    * Ensures that for all of the [[authorizers]], the (optional) is authorized to access the [[resourceId]].
+    * If so, continues on with a [[RichRequest]] and refreshed the JWT Session Token
+    * @param request The incoming request
+    * @param block Transformer from the request to a result
+    * @tparam A @see [[Request#A]]
+    * @return A [[Future]] [[Result]]
+    */
+  def invokeBlock[A](request: Request[A],
+                     block: Request[A] => Future[Result]): Future[Result] = {
+    val userId: Option[UUID] =
+      request.jwtSession.getAs[JsObject]("user")
+        .flatMap((u: JsObject) => (u \ "id").asOpt[UUID])
+
+    val data =
+      parseBody(request.body) ++
+        JsObject(request.queryString map (kv => kv._1 -> Json.toJson(kv._2.mkString))) ++
+        JsObject(pathParameters map (kv => kv._1 -> Json.toJson(kv._2))) ++
+        JsObject(request.headers.toMap.map(kv => kv._1 -> Json.toJson(kv._2.mkString)))
+
+    Try(authorizers forall (authorizer => authorizer(userId, resourceId, data))) match {
+      case Success(true) =>
+        block(RichRequest(userId, request, data))
+          .map(_.refreshJwtSession(request))
+      case Success(false) =>
+        Future.successful(Unauthorized(ResponseHelpers.message("You are not authorized to access this resource.")))
+      case Failure(error) =>
+        Future.successful(InternalServerError(ResponseHelpers.message("Something broke.")))
+    }
+
+  }
+
+  /**
+    * Parses a [[Request.body]] by attempting to use each of provided [[acceptedContentTypes]]
+    * @param body @see [[Request.body]]
+    * @return A [[JsObject]] created using the body
+    */
+  def parseBody(body: Any) =
+    (acceptedContentTypes map {
+      case ContentTypes.FORM =>
+        Try(JsObject(body.asInstanceOf[Map[String, String]].map(kv => kv._1 -> Json.toJson(kv._2))))
+          .getOrElse(Json.obj())
+      case ContentTypes.JSON =>
+        Try(body.asInstanceOf[JsObject])
+          .getOrElse(Json.obj())
+      case _ =>
+        Json.obj()
+    }).fold(Json.obj())(_ deepMerge _)
+
+}
