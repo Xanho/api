@@ -3,13 +3,17 @@ package system.helpers
 import java.util.UUID
 
 import models.User
-import play.api.http.ContentTypes
-import play.api.libs.json._
-import play.api.mvc.Results._
-import play.api.mvc._
+import _root_.play.api.http.ContentTypes
+import _root_.play.api.mvc.Codec._
+import _root_.play.api.libs.json._
+import _root_.play.api.mvc.Results._
+import _root_.play.api.mvc._
+import pdi.jwt._
+
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Represents a [[Request]] that contains an optional user ID and the data of the request
@@ -29,10 +33,10 @@ case class RichRequest[A](userId: Option[UUID],
   * @param acceptedContentTypes A set of [[ContentTypes]] that the particular route accepts
   * @param pathParameters Any additional path parameters for the request
   */
-case class Authorized(resourceId: Option[UUID],
+case class Authorized[A1](resourceId: Option[UUID],
                       authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean],
                       acceptedContentTypes: Set[String] = Set(),
-                      pathParameters: Map[String, Any] = Map())(block: RichRequest => Result) extends ActionBuilder[Request] {
+                      pathParameters: Map[String, JsValue] = Map())(block: RichRequest[A1] => Result) extends ActionBuilder[RichRequest] {
 
   /**
     *
@@ -45,7 +49,7 @@ case class Authorized(resourceId: Option[UUID],
     * @return A [[Future]]: [[Unauthorized]] or [[InternalServerError]] or [[]]
     */
   def invokeBlock[A](request: Request[A],
-                     block: Request[A] => Future[Result]): Future[Result] = {
+                     block: RichRequest[A] => Future[Result]) = {
     val userId: Option[UUID] =
       request.jwtSession.getAs[JsObject]("user")
         .flatMap((u: JsObject) => (u \ "id").asOpt[UUID])
@@ -53,7 +57,7 @@ case class Authorized(resourceId: Option[UUID],
     val data =
       parseBody(request.body) ++
         JsObject(request.queryString map (kv => kv._1 -> Json.toJson(kv._2.mkString))) ++
-        JsObject(pathParameters map (kv => kv._1 -> Json.toJson(kv._2))) ++
+        JsObject(pathParameters) ++
         JsObject(request.headers.toMap.map(kv => kv._1 -> Json.toJson(kv._2.mkString))) ++
         Json.obj("userId" -> userId)
 
@@ -76,10 +80,10 @@ case class Authorized(resourceId: Option[UUID],
     */
   def parseBody(body: Any) =
     (acceptedContentTypes map {
-      case ContentTypes.FORM =>
+      case x if x == ContentTypes.FORM =>
         Try(JsObject(body.asInstanceOf[Map[String, String]].map(kv => kv._1 -> Json.toJson(kv._2))))
           .getOrElse(Json.obj())
-      case ContentTypes.JSON =>
+      case x if x == ContentTypes.JSON =>
         Try(body.asInstanceOf[JsObject])
           .getOrElse(Json.obj())
       case _ =>

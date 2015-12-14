@@ -1,6 +1,6 @@
 package system.helpers
 
-import play.api.libs.json.{JsObject, Json}
+import _root_.play.api.libs.json.{JsObject, Json}
 
 object ResponseHelpers {
 

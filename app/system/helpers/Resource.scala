@@ -2,10 +2,10 @@ package system.helpers
 
 import java.util.UUID
 
+import _root_.play.api.libs.json._
 import models.Helpers.Columns
-import play.api.libs.json._
+import play.api.libs.json.Reads._
 import slick.driver.MySQLDriver.api._
-import system.helpers.ResponseHelpers.PropertyErrorCodes
 
 /**
   * Represents a specific, identifiable application resource.
@@ -26,7 +26,7 @@ trait Resource {
   * @tparam R The [[Resource]] of this collection
   * @tparam T Type bound used for the TableQuery to ensure the table has an ID column
   */
-trait ResourceCollection[R <: Resource, T <: Table[R] with Columns.Id[R]] {
+trait ResourceCollection[T <: Table[R] with Columns.Id[R], R <: Resource] {
 
   /**
     * This collection's [[TableQuery]]
@@ -41,11 +41,11 @@ trait ResourceCollection[R <: Resource, T <: Table[R] with Columns.Id[R]] {
   implicit def writes: Writes[R]
 
   /**
-    * Checks the provided arguments, and validates the necessary properties
-    * @param arguments The arguments to be validated
-    * @return A invalid property mapping from a property name to an error status
+    * A set of validaters which are used in [[validateArguments]]
+    * @return A [[Set]] of tuples of (Field Name, Required, Set of validation requirements)
     */
-  def validateArguments(arguments: Map[String, JsValue]): Map[String, Int]
+  def validaters: Set[(String, Boolean, Set[JsValue => Option[Int]])]
+
 
   /**
     * Creates a [[R]] with the given arguments
@@ -60,7 +60,7 @@ trait ResourceCollection[R <: Resource, T <: Table[R] with Columns.Id[R]] {
     * @return An optional [[R]] if one is found
     */
   def read(id: UUID): Option[R] =
-    SlickHelper.optionalFindById(tableQuery, id)
+    SlickHelper.optionalFindById[T, R](tableQuery, id)
 
   /**
     * Deletes the [[system.helpers.Resource]] with the given [[system.helpers.Resource.id]]
@@ -122,6 +122,20 @@ trait ResourceCollection[R <: Resource, T <: Table[R] with Columns.Id[R]] {
                 userId: Option[UUID],
                 data: JsObject = Json.obj()): Boolean
 
+  /**
+    * Checks the provided arguments, and validates the necessary properties
+    * @param arguments The arguments to be validated
+    * @return A invalid property mapping from a property name to an error status
+    */
+  def validateArguments(arguments: Map[String, JsValue]): Map[String, Int] =
+    (validaters map {
+      case (key: String, required: Boolean, rules: Set[(JsValue => Option[Int])]) =>
+        key -> PropertyValidators.validate(key, arguments, required, rules)
+    }).toMap collect {
+      case (key, Some(value)) =>
+        key -> value
+    }
+
 }
 
 object PropertyValidators {
@@ -137,14 +151,14 @@ object PropertyValidators {
   def validate(key: String,
                arguments: Map[String, JsValue],
                required: Boolean,
-               rules: (JsValue => Option[Int])*): Option[Int] =
+               rules: Set[JsValue => Option[Int]]): Option[Int] =
     arguments.get(key)
       .fold(
-        if(required)
+        if (required)
           Some(PropertyErrorCodes.NO_VALUE)
         else
           None
-      )(a => rules.foldLeft[Option[Int]](None){
+      )(a => rules.foldLeft[Option[Int]](None) {
         case (None, rule: (JsValue => Option[Int])) =>
           rule(a)
         case (Some(x), _) =>
@@ -157,22 +171,25 @@ object PropertyValidators {
     * @return An optional error code
     */
   def name(s: JsValue): Option[Int] =
-    s match {
-      case str: JsString =>
-        str.value match {
-          case namePattern(_*) =>
-            if(str.value.length < 2)
-              Some(PropertyErrorCodes.TOO_SHORT)
-            else if(str.value.length > 20)
-              Some(PropertyErrorCodes.TOO_LONG)
-            else
-              None
-          case _ =>
-            Some(PropertyErrorCodes.INVALID_CHARACTERS)
-        }
-      case _ =>
-        Some(PropertyErrorCodes.INVALID_TYPE)
-    }
+    s.validate(__.read[JsString])
+      .fold(
+        _ => Some(PropertyErrorCodes.INVALID_TYPE),
+        _.validate[JsString](minLength[JsString](2))
+          .fold(
+            _ => Some(PropertyErrorCodes.TOO_SHORT),
+            _.validate[String](maxLength[String](20))
+              .fold(
+                _ => Some(PropertyErrorCodes.TOO_LONG),
+                {
+                  case namePattern(_*) =>
+                    None
+                  case _ =>
+                    Some(PropertyErrorCodes.NOT_UUID)
+                }
+              )
+
+          )
+      )
 
   /**
     * Validates an email address
@@ -180,49 +197,71 @@ object PropertyValidators {
     * @return An optional error code
     */
   def email(s: JsValue): Option[Int] =
-    s match {
-      case str: JsString =>
-        str.value match {
-          case emailPattern(_*) =>
-            None
-          case _ =>
-            Some(PropertyErrorCodes.INVALID_EMAIL)
-        }
-      case _ =>
-        Some(PropertyErrorCodes.INVALID_TYPE)
-    }
+    s.validate(__.read[JsString])
+      .fold(
+        _ => Some(PropertyErrorCodes.INVALID_TYPE),
+        _.validate(Reads.email)
+          .fold(
+            _ => Some(PropertyErrorCodes.INVALID_EMAIL),
+            _ => None
+          )
+      )
 
   /**
-    * Validates a password field
+    * Validates a password field, requiring it to be a string,
+    * be at least two letters long, be at most 200 characters long,
+    * contain at least one number,
+    * and at least one non-alpha numeric character
     * @param s The given input
     * @return An optional error code
     */
   def password(s: JsValue): Option[Int] =
-    s match {
-      case str: JsString =>
-        if((nonAlphaNumeric findAllIn str.value).isEmpty || (numeric findAllIn str.value).isEmpty)
-          Some(PropertyErrorCodes.NOT_COMPLEX_ENOUGH)
-        else if(str.value.length < 7)
-          Some(PropertyErrorCodes.TOO_SHORT)
-        else if(str.value.length > 200)
-          Some(PropertyErrorCodes.TOO_LONG)
-        else
-          None
-      case _ =>
-        Some(PropertyErrorCodes.INVALID_TYPE)
-    }
+    s.validate(__.read[JsString])
+      .fold(
+        _ => Some(PropertyErrorCodes.INVALID_TYPE),
+        _.validate[JsString](minLength[JsString](2))
+          .fold(
+            _ => Some(PropertyErrorCodes.TOO_SHORT),
+            _.validate[String](maxLength[String](4))
+              .fold(
+                _ => Some(PropertyErrorCodes.TOO_LONG),
+                p => if ((nonAlphaNumericPattern findAllIn p).isEmpty || (numericPattern findAllIn p).isEmpty)
+                  Some(PropertyErrorCodes.NOT_COMPLEX_ENOUGH)
+                else
+                  None
+              )
 
-  private val emailPattern =
-    """\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b""".r
+          )
+      )
+
+  /**
+    * Validates a UUID4
+    * @param s The given input
+    * @return An optional error code
+    */
+  def uuid4(s: JsValue): Option[Int] =
+    s.validate(__.read[String])
+      .fold(
+        _ => Some(PropertyErrorCodes.INVALID_TYPE),
+        {
+          case uuid4Pattern(_*) =>
+            None
+          case _ =>
+            Some(PropertyErrorCodes.NOT_UUID)
+        }
+      )
 
   private val namePattern =
     """[A-Za-z-]*""".r
 
-  private val nonAlphaNumeric =
+  private val nonAlphaNumericPattern =
     """([^A-Za-z0-9])""".r
 
-  private val numeric =
+  private val numericPattern =
     """([0-9])""".r
+
+  private val uuid4Pattern =
+    """[0-9a-f]{32}\Z""".r
 
   object PropertyErrorCodes {
 
@@ -233,6 +272,7 @@ object PropertyValidators {
     val INVALID_EMAIL = 4
     val INVALID_CHARACTERS = 5
     val NOT_COMPLEX_ENOUGH = 6
+    val NOT_UUID = 7
   }
 
 }

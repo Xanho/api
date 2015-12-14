@@ -1,7 +1,7 @@
 package controllers
 
-import play.api.libs.json.Json
-import play.api.mvc._
+import _root_.play.api.libs.json.Json
+import _root_.play.api.mvc._
 
 class Application extends Controller {
 

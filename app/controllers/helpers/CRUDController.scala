@@ -2,24 +2,26 @@ package controllers.helpers
 
 import java.util.UUID
 
-import play.api.http.ContentTypes
-import play.api.libs.json.{Json, JsValue, JsObject}
-import play.api.mvc.{Result, Controller, Action}
-import play.api.mvc.Results._
+import models.Helpers.Columns
+import _root_.play.api.http.ContentTypes
+import _root_.play.api.libs.json.{Json, JsValue, JsObject}
+import _root_.play.api.mvc.{Result, Controller, Action}
+import _root_.play.api.mvc.Results._
 import system.helpers.PropertyValidators.PropertyErrorCodes
-import system.helpers.{ResponseHelpers, Authorized, ResourceCollection}
+import system.helpers._
+import slick.driver.MySQLDriver.api._
 
 
-trait CRUDController extends Controller {
+trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Controller {
 
-  def resourceCollection: ResourceCollection
+  def resourceCollection: ResourceCollection[T, R]
 
   /**
     * An [[Action]] to create a new resource in the [[resourceCollection]]
     * @return An [[Action]]
     */
   def create =
-    Authorized(None, Set(resourceCollection.canCreate), Set(ContentTypes.JSON))(request =>
+    Authorized(None, Set(resourceCollection.canCreate), Set(ContentTypes.JSON))((request: RichRequest[_]) =>
       CRUDResults.create(resourceCollection, request.data)
     )
 
@@ -29,7 +31,7 @@ trait CRUDController extends Controller {
     * @return An [[Action]]
     */
   def read(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canRead))(_ =>
+    Authorized(Some(uuid), Set(resourceCollection.canRead))((_: RichRequest[_]) =>
       CRUDResults.read(uuid, resourceCollection)
     )
 
@@ -39,7 +41,7 @@ trait CRUDController extends Controller {
     * @return An [[Action]]
     */
   def update(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canModify), Set(ContentTypes.JSON))(request =>
+    Authorized(Some(uuid), Set(resourceCollection.canModify), Set(ContentTypes.JSON))((request: RichRequest[_]) =>
       CRUDResults.update(uuid, resourceCollection, request.data)
     )
 
@@ -49,7 +51,7 @@ trait CRUDController extends Controller {
     * @return An [[Action]]
     */
   def delete(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canDelete))(_ =>
+    Authorized(Some(uuid), Set(resourceCollection.canDelete))((_: RichRequest[_]) =>
       CRUDResults.delete(uuid, resourceCollection)
     )
 
@@ -64,7 +66,7 @@ object CRUDResults {
     * @param data A [[JsObject]] containing the data to use in the creation
     * @return [[Ok]] or [[InternalServerError]] or [[BadRequest]]
     */
-  def create(resourceCollection: ResourceCollection,
+  def create[T, R](resourceCollection: ResourceCollection[T, R],
              data: JsObject): Result =
     resourceCollection.validateArguments(data.as[Map[String, JsValue]]) match {
       case m if m.isEmpty =>
@@ -82,8 +84,8 @@ object CRUDResults {
     * @param resourceCollection The [[ResourceCollection]] to search in
     * @return [[Ok]] or [[NotFound]]
     */
-  def read(uuid: UUID,
-           resourceCollection: ResourceCollection): Result =
+  def read[T, R](uuid: UUID,
+           resourceCollection: ResourceCollection[T, R]): Result =
     resourceCollection.read(uuid)
       .fold(NotFound(ResponseHelpers.message("The resource with ID %s could not be found." format uuid)))(item =>
         Ok(Json.toJson(item)(resourceCollection.writes))
@@ -96,8 +98,8 @@ object CRUDResults {
     * @param data A [[JsObject]] containing the data to use in the update
     * @return [[Accepted]] or [[InternalServerError]] or [[BadRequest]]
     */
-  def update(uuid: UUID,
-             resourceCollection: ResourceCollection,
+  def update[T, R](uuid: UUID,
+             resourceCollection: ResourceCollection[T, R],
              data: JsObject): Result =
     resourceCollection.validateArguments(data.as[Map[String, JsValue]]) filterNot (_._2 == PropertyErrorCodes.NO_VALUE) match {
       case m if m.isEmpty =>
@@ -115,8 +117,8 @@ object CRUDResults {
     * @param resourceCollection The [[ResourceCollection]] to search/delete in
     * @return [[NoContent]] or [[NotFound]]
     */
-  def delete(uuid: UUID,
-             resourceCollection: ResourceCollection): Result =
+  def delete[T, R](uuid: UUID,
+             resourceCollection: ResourceCollection[T, R]): Result =
     if(resourceCollection.delete(uuid))
       NoContent
     else

@@ -3,8 +3,8 @@ package system
 import java.util.UUID
 
 import models.Helpers.Columns
-import play.api.Play
-import play.api.db.slick.DatabaseConfigProvider
+import _root_.play.api.Play
+import _root_.play.api.db.slick.DatabaseConfigProvider
 import slick.driver.JdbcProfile
 import slick.driver.MySQLDriver.api._
 

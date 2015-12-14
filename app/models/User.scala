@@ -4,9 +4,9 @@ import java.util.UUID
 
 import com.github.t3hnar.bcrypt._
 import models.Helpers.Columns
-import play.api.libs.json.{JsObject, JsValue, Json, Writes}
+import _root_.play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import slick.driver.MySQLDriver.api._
-import system.helpers.{PropertyValidators, ResourceCollection, SlickHelper}
+import system.helpers.{Resource, PropertyValidators, ResourceCollection, SlickHelper}
 
 /**
   * A Xanho User/Member
@@ -20,7 +20,7 @@ case class User(id: UUID,
                 firstName: String,
                 lastName: String,
                 email: String,
-                boxcode: String)
+                boxcode: String) extends Resource
 
 object UserHelper {
 
@@ -73,7 +73,7 @@ class Users(tag: Tag)
 
 }
 
-object Users extends ResourceCollection[User, Users] {
+object Users extends ResourceCollection[Users, User] {
 
   /**
     * @inheritdoc
@@ -84,7 +84,7 @@ object Users extends ResourceCollection[User, Users] {
   /**
     * @inheritdoc
     */
-  implicit val writes =
+  implicit val writes: Writes[User] =
     new Writes[User] {
       def writes(o: User) =
         Json.obj(
@@ -97,19 +97,14 @@ object Users extends ResourceCollection[User, Users] {
 
   /**
     * @inheritdoc
-    * @param arguments The arguments to be validated
-    * @return A invalid property mapping from a property name to an error status
     */
-  def validateArguments(arguments: Map[String, JsValue]) =
-    Map(
-      "firstName" -> PropertyValidators.validate("firstName", arguments, true, PropertyValidators.name),
-      "lastName" -> PropertyValidators.validate("lastName", arguments, true, PropertyValidators.name),
-      "email" -> PropertyValidators.validate("email", arguments, true, PropertyValidators.email),
-      "password" -> PropertyValidators.validate("password", arguments, true, PropertyValidators.password)
-    ) collect {
-      case (key, Some(value)) =>
-        key -> value
-    }
+  val validaters =
+    Set(
+      ("firstName", true, PropertyValidators.name _),
+      ("lastName", true, PropertyValidators.name _),
+      ("email", true, PropertyValidators.email _),
+      ("password", true, PropertyValidators.password _)
+    )
 
   /**
     * @inheritdoc

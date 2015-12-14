@@ -4,7 +4,7 @@ import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.Ownable
-import play.api.libs.json.{JsObject, Json}
+import _root_.play.api.libs.json.{JsObject, Json}
 import slick.driver.MySQLDriver.api._
 import system.helpers.SlickHelper._
 import system.helpers._
@@ -48,7 +48,13 @@ case class Critique(id: UUID,
     false
 }
 
-object Critiques extends ResourceCollection {
+object Critiques extends ResourceCollection[Critiques, Critique] {
+
+  /**
+    * @inheritdoc
+    */
+  val tableQuery =
+    TableQuery[Critiques]
 
   /**
     * @inheritdoc
