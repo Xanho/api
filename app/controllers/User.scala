@@ -3,12 +3,12 @@ package controllers
 import controllers.helpers.CRUDController
 import models.Users
 
-class User extends CRUDController[Users, User] {
+class User extends CRUDController[Users, models.User] {
 
   /**
     * @inheritdoc
     */
-  val resourceCollection =
+  def resourceCollection =
     Users
 
   /**

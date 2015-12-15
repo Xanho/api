@@ -21,7 +21,7 @@ trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Co
     * @return An [[Action]]
     */
   def create =
-    Authorized(None, Set(resourceCollection.canCreate), Set(ContentTypes.JSON))((request: RichRequest[_]) =>
+    Authorized(None, Set(resourceCollection.canCreate), Set(ContentTypes.JSON))((request: ParsedRequest[_]) =>
       CRUDResults.create(resourceCollection, request.data)
     )
 
@@ -31,7 +31,7 @@ trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Co
     * @return An [[Action]]
     */
   def read(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canRead))((_: RichRequest[_]) =>
+    Authorized(Some(uuid), Set(resourceCollection.canRead))((_: ParsedRequest[_]) =>
       CRUDResults.read(uuid, resourceCollection)
     )
 
@@ -41,7 +41,7 @@ trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Co
     * @return An [[Action]]
     */
   def update(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canModify), Set(ContentTypes.JSON))((request: RichRequest[_]) =>
+    Authorized(Some(uuid), Set(resourceCollection.canModify), Set(ContentTypes.JSON))((request: ParsedRequest[_]) =>
       CRUDResults.update(uuid, resourceCollection, request.data)
     )
 
@@ -51,7 +51,7 @@ trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Co
     * @return An [[Action]]
     */
   def delete(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canDelete))((_: RichRequest[_]) =>
+    Authorized(Some(uuid), Set(resourceCollection.canDelete))((_: ParsedRequest[_]) =>
       CRUDResults.delete(uuid, resourceCollection)
     )
 
@@ -66,7 +66,7 @@ object CRUDResults {
     * @param data A [[JsObject]] containing the data to use in the creation
     * @return [[Ok]] or [[InternalServerError]] or [[BadRequest]]
     */
-  def create[T, R](resourceCollection: ResourceCollection[T, R],
+  def create[T <: Table[R] with Columns.Id[R], R <: Resource](resourceCollection: ResourceCollection[T, R],
              data: JsObject): Result =
     resourceCollection.validateArguments(data.as[Map[String, JsValue]]) match {
       case m if m.isEmpty =>
@@ -84,7 +84,7 @@ object CRUDResults {
     * @param resourceCollection The [[ResourceCollection]] to search in
     * @return [[Ok]] or [[NotFound]]
     */
-  def read[T, R](uuid: UUID,
+  def read[T <: Table[R] with Columns.Id[R], R <: Resource](uuid: UUID,
            resourceCollection: ResourceCollection[T, R]): Result =
     resourceCollection.read(uuid)
       .fold(NotFound(ResponseHelpers.message("The resource with ID %s could not be found." format uuid)))(item =>
@@ -98,7 +98,7 @@ object CRUDResults {
     * @param data A [[JsObject]] containing the data to use in the update
     * @return [[Accepted]] or [[InternalServerError]] or [[BadRequest]]
     */
-  def update[T, R](uuid: UUID,
+  def update[T <: Table[R] with Columns.Id[R], R <: Resource](uuid: UUID,
              resourceCollection: ResourceCollection[T, R],
              data: JsObject): Result =
     resourceCollection.validateArguments(data.as[Map[String, JsValue]]) filterNot (_._2 == PropertyErrorCodes.NO_VALUE) match {
@@ -117,7 +117,7 @@ object CRUDResults {
     * @param resourceCollection The [[ResourceCollection]] to search/delete in
     * @return [[NoContent]] or [[NotFound]]
     */
-  def delete[T, R](uuid: UUID,
+  def delete[T <: Table[R] with Columns.Id[R], R <: Resource](uuid: UUID,
              resourceCollection: ResourceCollection[T, R]): Result =
     if(resourceCollection.delete(uuid))
       NoContent

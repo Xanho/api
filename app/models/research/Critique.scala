@@ -4,7 +4,7 @@ import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.Ownable
-import _root_.play.api.libs.json.{JsObject, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
 import system.helpers.SlickHelper._
 import system.helpers._
@@ -59,10 +59,58 @@ object Critiques extends ResourceCollection[Critiques, Critique] {
   /**
     * @inheritdoc
     */
-  def canRead(resourceId: UUID,
+  implicit val writes =
+    Json.writes[Critique]
+
+  /**
+    * @inheritdoc
+    */
+  val validaters =
+    Set(
+      ("ownerId", true, Set(PropertyValidators.uuid4 _)),
+      ("projectDraftId", true, Set(PropertyValidators.uuid4 _)),
+      ("content", true, Set[JsValue => Option[Int]]())
+    )
+
+  /**
+    * @inheritdoc
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[Critique]]
+    */
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]) =
+    Critique(
+      uuid,
+      arguments("ownerId").as[UUID],
+      arguments("projectDraftId").as[UUID],
+      arguments("content").as[String]
+    )
+
+  /**
+    * @inheritdoc
+    * @param row A [[Critique]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[Critique]]
+    */
+  def updater(row: Critique,
+              arguments: Map[String, JsValue]) =
+    row.copy(
+      row.id,
+      row.ownerId,
+      row.projectDraftId,
+      arguments.get("content")
+        .fold(row.content)(_.as[String])
+    )
+
+
+  /**
+    * @inheritdoc
+    */
+  def canRead(resourceId: Option[UUID],
               userId: Option[UUID],
               data: JsObject = Json.obj()): Boolean =
-    Try(resourceId.toInstance[Critiques, Critique](tableQueries.critiques)) match {
+    Try(resourceId.get.toInstance[Critiques, Critique](tableQueries.critiques)) match {
       case Success(instance) =>
         userId.fold(false)(_ == instance.ownerId) ||
           userId.fold(false)(_ == instance.projectDraft.project.ownerId)
@@ -73,7 +121,7 @@ object Critiques extends ResourceCollection[Critiques, Critique] {
   /**
     * @inheritdoc
     */
-  def canDelete(resourceId: UUID,
+  def canDelete(resourceId: Option[UUID],
                 userId: Option[UUID],
                 data: JsObject = Json.obj()): Boolean =
     false
@@ -81,7 +129,7 @@ object Critiques extends ResourceCollection[Critiques, Critique] {
   /**
     * @inheritdoc
     */
-  def canModify(resourceId: UUID,
+  def canModify(resourceId: Option[UUID],
                 userId: Option[UUID],
                 data: JsObject = Json.obj()): Boolean =
     false
@@ -89,7 +137,8 @@ object Critiques extends ResourceCollection[Critiques, Critique] {
   /**
     * @inheritdoc
     */
-  def canCreate(userId: Option[UUID],
+  def canCreate(resourceId: Option[UUID],
+                userId: Option[UUID],
                 data: JsObject = Json.obj()): Boolean =
     userId.nonEmpty
 

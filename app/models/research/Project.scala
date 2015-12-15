@@ -2,13 +2,12 @@ package models.research
 
 import java.util.UUID
 
+import _root_.play.api.libs.json.{JsObject, JsValue, Writes, _}
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.Ownable
-import _root_.play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import slick.driver.MySQLDriver.api._
-import system.helpers.{PropertyValidators, Resource, ResourceCollection, SlickHelper}
-import _root_.play.api.libs.json._
-import _root_.play.api.libs.functional.syntax._
+import system.helpers.{PropertyValidators, Resource, ResourceCollection}
+
 /**
   * Represents a Research Project, which consists of a series of drafts
   * @param id The project's ID
@@ -46,7 +45,7 @@ object Projects extends ResourceCollection[Projects, Project] {
   /**
     * @inheritdoc
     */
-  implicit val writes =
+  implicit val writes: Writes[Project] =
     new Writes[Project] {
       def writes(o: Project) =
         Json.obj(
@@ -63,50 +62,30 @@ object Projects extends ResourceCollection[Projects, Project] {
 
   /**
     * @inheritdoc
-    * @param fields The arguments to create a [[Project]]
-    * @return An optional [[Project]]
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[Project]]
     */
-  def create(fields: Map[String, JsValue]): Option[Project] = {
-    val uuid =
-      system.helpers.uuid
-
-    if (
-      SlickHelper.queryResult(
-        tableQueries.projects +=
-          Project(
-            uuid,
-            fields("ownerId").as[UUID]
-          )
-      ) > 0
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]) =
+    Project(
+      uuid,
+      arguments("ownerId").as[UUID]
     )
-      SlickHelper.optionalFindById[Projects, Project](tableQuery, uuid)
-    else
-      None
-  }
 
   /**
     * @inheritdoc
-    * @param id @see [[Project.id]]
-    * @param arguments A key-value argument pair
-    * @return true if successful, false otherwise
+    * @param row A [[Project]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[Project]]
     */
-  def update(id: UUID,
-             arguments: Map[String, JsValue]): Boolean =
-    read(id)
-      .map(row =>
-        SlickHelper.queryResult(
-          tableQuery
-            .filter(_.id === id)
-            .update(
-              row.copy(
-                id,
-                arguments.get("ownerId")
-                  .fold(row.ownerId)(_.as[UUID])
-              )
-            )
-        )
-      )
-      .fold(false)(_ > 0)
+  def updater(row: Project,
+              arguments: Map[String, JsValue]) =
+    row.copy(
+      row.id,
+      arguments.get("ownerId")
+        .fold(row.ownerId)(_.as[UUID])
+    )
 
   /**
     * @inheritdoc

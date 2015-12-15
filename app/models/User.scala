@@ -100,68 +100,48 @@ object Users extends ResourceCollection[Users, User] {
     */
   val validaters =
     Set(
-      ("firstName", true, PropertyValidators.name _),
-      ("lastName", true, PropertyValidators.name _),
-      ("email", true, PropertyValidators.email _),
-      ("password", true, PropertyValidators.password _)
+      ("firstName", true, Set(PropertyValidators.name _)),
+      ("lastName", true, Set(PropertyValidators.name _)),
+      ("email", true, Set(PropertyValidators.email _)),
+      ("password", true, Set(PropertyValidators.password _))
     )
 
   /**
     * @inheritdoc
-    * @param fields The arguments to create a [[User]]
-    * @return An optional [[User]]
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[User]]
     */
-  def create(fields: Map[String, JsValue]): Option[User] = {
-    val uuid =
-      system.helpers.uuid
-
-    if (
-      SlickHelper.queryResult(
-        tableQueries.users +=
-          User(
-            uuid,
-            fields("firstName").as[String],
-            fields("lastName").as[String],
-            fields("email").as[String],
-            fields("boxcode").as[String]
-          )
-      ) > 0
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]) =
+    User(
+      uuid,
+      arguments("firstName").as[String],
+      arguments("lastName").as[String],
+      arguments("email").as[String],
+      arguments("boxcode").as[String]
     )
-      SlickHelper.optionalFindById[Users, User](tableQuery, uuid)
-    else
-      None
-  }
 
   /**
     * @inheritdoc
-    * @param id @see [[User.id]]
-    * @param arguments A key-value argument pair
-    * @return true if successful, false otherwise
+    * @param row A [[User]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[User]]
     */
-  def update(id: UUID,
-             arguments: Map[String, JsValue]): Boolean =
-    read(id)
-      .map(row =>
-        SlickHelper.queryResult(
-          tableQuery
-            .filter(_.id === id)
-            .update(
-              row.copy(
-                id,
-                arguments.get("firstName")
-                  .fold(row.firstName)(_.as[String]),
-                arguments.get("lastName")
-                  .fold(row.firstName)(_.as[String]),
-                arguments.get("email")
-                  .fold(row.firstName)(_.as[String]),
-                arguments.get("boxcode")
-                  .fold(row.firstName)(_.as[String])
-              )
-            )
-        )
-      )
-      .fold(false)(_ > 0)
-
+  def updater(row: User,
+              arguments: Map[String, JsValue]) =
+    row.copy(
+      row.id,
+      arguments.get("firstName")
+        .fold(row.firstName)(_.as[String]),
+      arguments.get("lastName")
+        .fold(row.firstName)(_.as[String]),
+      arguments.get("email")
+        .fold(row.firstName)(_.as[String]),
+      arguments.get("boxcode")
+        .fold(row.firstName)(_.as[String])
+    )
+  
   /**
     * @inheritdoc
     */

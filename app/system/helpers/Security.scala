@@ -2,18 +2,17 @@ package system.helpers
 
 import java.util.UUID
 
-import models.User
 import _root_.play.api.http.ContentTypes
-import _root_.play.api.mvc.Codec._
 import _root_.play.api.libs.json._
+import _root_.play.api.mvc.Codec._
 import _root_.play.api.mvc.Results._
 import _root_.play.api.mvc._
+import models.User
 import pdi.jwt._
 
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Represents a [[Request]] that contains an optional user ID and the data of the request
@@ -22,9 +21,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
   * @param data A combination of all of the path, query, body, form, and header parameters
   * @tparam A @see [[Request#A]]
   */
-case class RichRequest[A](userId: Option[UUID],
-                          request: Request[A],
-                          data: JsObject) extends WrappedRequest[A](request)
+case class ParsedRequest[A](userId: Option[UUID],
+                            request: Request[A],
+                            data: JsObject) extends WrappedRequest[A](request)
 
 /**
   * Represents an [[Action]] that requires [[Resource]] authorization
@@ -34,22 +33,24 @@ case class RichRequest[A](userId: Option[UUID],
   * @param pathParameters Any additional path parameters for the request
   */
 case class Authorized[A1](resourceId: Option[UUID],
-                      authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean],
-                      acceptedContentTypes: Set[String] = Set(),
-                      pathParameters: Map[String, JsValue] = Map())(block: RichRequest[A1] => Result) extends ActionBuilder[RichRequest] {
+                          authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean],
+                          acceptedContentTypes: Set[String] = Set(),
+                          pathParameters: Map[String, JsValue] = Map())(block: ParsedRequest[A1] => Result) extends ActionBuilder[ParsedRequest] {
+
+  import JwtPlayImplicits._
 
   /**
     *
     * @inheritdoc
     * Ensures that for all of the [[authorizers]], the (optional) user is authorized to access the [[resourceId]].
-    * If so, continues on with a [[RichRequest]] and refreshed the JWT Session Token
+    * If so, continues on with a [[ParsedRequest]] and refreshed the JWT Session Token
     * @param request The incoming request
     * @param block Transformer from the request to a result
     * @tparam A @see [[Request#A]]
     * @return A [[Future]]: [[Unauthorized]] or [[InternalServerError]] or [[]]
     */
   def invokeBlock[A](request: Request[A],
-                     block: RichRequest[A] => Future[Result]) = {
+                     block: ParsedRequest[A] => Future[Result]) = {
     val userId: Option[UUID] =
       request.jwtSession.getAs[JsObject]("user")
         .flatMap((u: JsObject) => (u \ "id").asOpt[UUID])
@@ -63,7 +64,7 @@ case class Authorized[A1](resourceId: Option[UUID],
 
     Try(authorizers forall (authorizer => authorizer(userId, resourceId, data))) match {
       case Success(true) =>
-        block(RichRequest(userId, request, data))
+        block(ParsedRequest(userId, request, data))
           .map(_.refreshJwtSession(request))
       case Success(false) =>
         Future.successful(Unauthorized(ResponseHelpers.message("You are not authorized to access this resource.")))
@@ -91,3 +92,5 @@ case class Authorized[A1](resourceId: Option[UUID],
     }).fold(Json.obj())(_ deepMerge _)
 
 }
+
+object JwtPlayImplicits extends JwtJsonImplicits with JwtPlayImplicits

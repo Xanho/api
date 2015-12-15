@@ -2,9 +2,9 @@ package system.helpers
 
 import java.util.UUID
 
+import _root_.play.api.libs.json.Reads._
 import _root_.play.api.libs.json._
 import models.Helpers.Columns
-import play.api.libs.json.Reads._
 import slick.driver.MySQLDriver.api._
 
 /**
@@ -52,7 +52,19 @@ trait ResourceCollection[T <: Table[R] with Columns.Id[R], R <: Resource] {
     * @param arguments A key-value argument pair
     * @return An optional [[R]]
     */
-  def create(arguments: Map[String, JsValue]): Option[R]
+  def create(arguments: Map[String, JsValue]): Option[R] =  {
+    val uuid =
+      system.helpers.uuid
+
+    if (
+      SlickHelper.queryResult(
+        tableQuery += creator(uuid, arguments)
+      ) > 0
+    )
+      SlickHelper.optionalFindById[T, R](tableQuery, uuid)
+    else
+      None
+  }
 
   /**
     * Retrieves the [[R]] with the given ID
@@ -71,13 +83,42 @@ trait ResourceCollection[T <: Table[R] with Columns.Id[R], R <: Resource] {
     SlickHelper.queryResult((tableQuery filter (_.id === id)).delete) > 0
 
   /**
+    * Given a row [[R]], updates the corresponding values in the given arguments
+    * Assume that the data is valid.
+    * @param row A [[R]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[R]]
+    */
+  def updater(row: R,
+              arguments: Map[String, JsValue]): R
+
+  /**
+    * Given a map of field names to values, creates a new [[R]]
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[R]]
+    */
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]): R
+
+  /**
     * Updates the [[R]] with the given ID, to the given arguments
     * @param id @see [[Resource.id]]
     * @param arguments A key-value argument pair
     * @return true if successful, false otherwise
     */
   def update(id: UUID,
-             arguments: Map[String, JsValue]): Boolean
+             arguments: Map[String, JsValue]): Boolean =
+    read(id)
+      .map(
+        row =>
+          SlickHelper.queryResult(
+            tableQuery
+              .filter(_.id === id)
+              .update(updater(row, arguments))
+          )
+      )
+      .fold(false)(_ > 0)
 
   /**
     * Dictates if the user with the given ID is allowed READ access to the resource with the given ID
@@ -174,13 +215,12 @@ object PropertyValidators {
     s.validate(__.read[JsString])
       .fold(
         _ => Some(PropertyErrorCodes.INVALID_TYPE),
-        _.validate[JsString](minLength[JsString](2))
+        _ => s.validate[String](__.read(minLength[String](2)))
           .fold(
             _ => Some(PropertyErrorCodes.TOO_SHORT),
-            _.validate[String](maxLength[String](20))
+            _ => s.validate[String](maxLength[String](20))
               .fold(
-                _ => Some(PropertyErrorCodes.TOO_LONG),
-                {
+                _ => Some(PropertyErrorCodes.TOO_LONG), {
                   case namePattern(_*) =>
                     None
                   case _ =>
@@ -219,10 +259,10 @@ object PropertyValidators {
     s.validate(__.read[JsString])
       .fold(
         _ => Some(PropertyErrorCodes.INVALID_TYPE),
-        _.validate[JsString](minLength[JsString](2))
+        _.validate[String](minLength[String](2))
           .fold(
             _ => Some(PropertyErrorCodes.TOO_SHORT),
-            _.validate[String](maxLength[String](4))
+            _ => s.validate[String](maxLength[String](4))
               .fold(
                 _ => Some(PropertyErrorCodes.TOO_LONG),
                 p => if ((nonAlphaNumericPattern findAllIn p).isEmpty || (numericPattern findAllIn p).isEmpty)
@@ -242,8 +282,7 @@ object PropertyValidators {
   def uuid4(s: JsValue): Option[Int] =
     s.validate(__.read[String])
       .fold(
-        _ => Some(PropertyErrorCodes.INVALID_TYPE),
-        {
+        _ => Some(PropertyErrorCodes.INVALID_TYPE), {
           case uuid4Pattern(_*) =>
             None
           case _ =>
