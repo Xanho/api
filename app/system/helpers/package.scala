@@ -3,13 +3,14 @@ package system
 import java.util.UUID
 
 import models.Helpers.Columns
-import play.api.Play
-import play.api.db.slick.DatabaseConfigProvider
+import _root_.play.api.Play
+import _root_.play.api.db.slick.DatabaseConfigProvider
 import slick.driver.JdbcProfile
 import slick.driver.MySQLDriver.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.util.{Failure, Success, Try}
 
 package object helpers {
 
@@ -38,6 +39,12 @@ package object helpers {
       .getOrElse(default)
 
   /**
+    * Generates a new [[java.util.UUID]]
+    */
+  def uuid =
+    java.util.UUID.randomUUID()
+
+  /**
     * Configuration helpers from the current [[play.configuration]] which attempt to read from application.conf,
     * with defaults in case they can't be found
     */
@@ -63,37 +70,57 @@ package object helpers {
       Await.result(db.run(a), DefaultConfiguration.queryTimeout)
 
     /**
-      * Retrieves a foreign row from a foreign table corresponding to the given tableQuery
-      * @param tableQuery The "foreign" table referenced by a column in the "local" or current table
-      * @param localId The optional ID in the local table which references the ID in tableQuery
+      * Retrieves a row from the given table using the given id
+      * @param tableQuery The table to search in
+      * @param id The ID to search for
       * @tparam T Type bound used for the TableQuery to ensure the table has an ID column
       * @tparam E The type of the [[Table]]
-      * @return An optional [[T#TableElementType]]
+      * @return A [[T#TableElementType]]
       */
-    def fkResult[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T],
-                                                      localId: UUID): T#TableElementType =
-      SlickHelper.queryResult((tableQuery filter (_.id === localId)).result.head)
+    def findById[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T],
+                                                      id: UUID): T#TableElementType =
+      SlickHelper.queryResult((tableQuery filter (_.id === id)).result.head)
 
     /**
-      * @see [[fkResult]], except with an optional local ID
-      * @param tableQuery The "foreign" table referenced by a column in the "local" or current table
-      * @param localId The optional ID in the local table which references the ID in tableQuery
+      * @see [[optionalFindById]], except with an optional local ID
+      * @param tableQuery The table to search in
+      * @param id The optional ID to search for
       * @tparam T Type bound used for the TableQuery to ensure the table has an ID column
       * @tparam E The type of the [[Table]]
       * @return An optional [[T#TableElementType]]
       */
-    def optionFkResult[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T],
-                                                            localId: Option[UUID]): Option[T#TableElementType] =
-      localId map (fkResult[T, E](tableQuery, _))
+    def optionalFindById[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T],
+                                                              id: Option[UUID]): Option[T#TableElementType] =
+      id flatMap (optionalFindById[T, E](tableQuery, _))
+
+    /**
+      * Attempts to retrieve a row from the given table using the given id
+      * @param tableQuery The table to search in
+      * @param id The optional ID to search for
+      * @tparam T Type bound used for the TableQuery to ensure the table has an ID column
+      * @tparam E The type of the [[Table]]
+      * @return An optional [[T#TableElementType]]
+      */
+    def optionalFindById[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T],
+                                                              id: UUID): Option[T#TableElementType] =
+      Try(SlickHelper.queryResult((tableQuery filter (_.id === id)).result.head)) match {
+        case Success(res) =>
+          Some(res)
+        case Failure(_) =>
+          None
+      }
 
     /**
       * Helper class which allows for treating UUIDs as foreign key reference columns
       * @param uuid The local UUID which references a foreign table's column
       */
-    implicit class FKUUID(uuid: UUID) {
+    implicit class UUIDHelper(uuid: UUID) {
 
       def fk[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T]): T#TableElementType =
-        fkResult[T, E](tableQuery, uuid)
+        uuid.toInstance[T, E](tableQuery)
+
+      def toInstance[T <: Table[E] with Columns.Id[E], E](tableQuery: TableQuery[T]): T#TableElementType =
+        findById[T, E](tableQuery, uuid)
 
     }
 

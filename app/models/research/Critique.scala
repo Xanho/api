@@ -4,9 +4,12 @@ import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.Ownable
+import play.api.libs.json.{JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
-import system.helpers._
 import system.helpers.SlickHelper._
+import system.helpers._
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * Represents a student or peer's critique of a [[Project]]
@@ -45,34 +48,101 @@ case class Critique(id: UUID,
     false
 }
 
-object Critiques extends ResourceCollection {
+object Critiques extends ResourceCollection[Critiques, Critique] {
 
   /**
     * @inheritdoc
     */
-  def canRead(userId: Option[UUID],
-              resources: Resource*): Boolean =
-    ???
+  val tableQuery =
+    TableQuery[Critiques]
 
   /**
     * @inheritdoc
     */
-  def canDelete(userId: Option[UUID],
-                resources: Resource*): Boolean =
-    ???
+  implicit val writes =
+    Json.writes[Critique]
 
   /**
     * @inheritdoc
     */
-  def canCreate(userId: Option[UUID]): Boolean =
-    ???
+  val validaters =
+    Set(
+      ("ownerId", true, Set(PropertyValidators.uuid4 _)),
+      ("projectDraftId", true, Set(PropertyValidators.uuid4 _)),
+      ("content", true, Set[JsValue => Option[Int]]())
+    )
+
+  /**
+    * @inheritdoc
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[Critique]]
+    */
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]) =
+    Critique(
+      uuid,
+      arguments("ownerId").as[UUID],
+      arguments("projectDraftId").as[UUID],
+      arguments("content").as[String]
+    )
+
+  /**
+    * @inheritdoc
+    * @param row A [[Critique]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[Critique]]
+    */
+  def updater(row: Critique,
+              arguments: Map[String, JsValue]) =
+    row.copy(
+      row.id,
+      row.ownerId,
+      row.projectDraftId,
+      arguments.get("content")
+        .fold(row.content)(_.as[String])
+    )
+
 
   /**
     * @inheritdoc
     */
-  def canModify(userId: Option[UUID],
-                resources: Resource*): Boolean =
-    ???
+  def canRead(resourceId: Option[UUID],
+              userId: Option[UUID],
+              data: JsObject = Json.obj()): Boolean =
+    Try(resourceId.get.toInstance[Critiques, Critique](tableQueries.critiques)) match {
+      case Success(instance) =>
+        userId.fold(false)(_ == instance.ownerId) ||
+          userId.fold(false)(_ == instance.projectDraft.project.ownerId)
+      case Failure(_) =>
+        false
+    }
+
+  /**
+    * @inheritdoc
+    */
+  def canDelete(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
+
+  /**
+    * @inheritdoc
+    */
+  def canModify(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
+
+  /**
+    * @inheritdoc
+    */
+  def canCreate(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    userId.nonEmpty
+
+
 }
 
 /**
