@@ -73,6 +73,17 @@ package object models {
       }
 
       /**
+        * A Title Column
+        * @tparam T Type bound on [[Table]]
+        */
+      trait Title[T] {
+        self: Table[T] =>
+
+        def title =
+          column[String]("title")
+      }
+
+      /**
         * An Optional Owner ID Column
         * @tparam T Type bound on [[Table]]
         */

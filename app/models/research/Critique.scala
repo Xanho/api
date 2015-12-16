@@ -47,6 +47,40 @@ case class Critique(id: UUID,
   def canModify(userId: Option[UUID]): Boolean =
     false
 }
+/**
+  * A [[slick.profile.RelationalTableComponent.Table]] for [[Critique]]s
+  * @param tag @see [[slick.lifted.Tag]]
+  */
+class Critiques(tag: Tag)
+  extends Table[Critique](tag, "critiques")
+  with Columns.Id[Critique]
+  with Columns.OwnerId[Critique]
+  with ForeignKeys.Owner[Critique] {
+
+  /**
+    * @see [[Critique.content]]
+    */
+  def content =
+    column[String]("content")
+
+  /**
+    * @see [[Critique.projectDraftId]]
+    */
+  def projectDraftId =
+    column[UUID]("project_draft_id")
+
+  /**
+    * @inheritdoc
+    */
+  def * =
+    (id, ownerId, projectDraftId, content).<>(Critique.tupled, Critique.unapply)
+
+  /**
+    * Foreign key for [[Critique.projectDraftId]]
+    */
+  def projectDraft =
+    foreignKey("fk_project_draft", projectDraftId, tableQueries.projectDrafts)(_.id)
+}
 
 object Critiques extends ResourceCollection[Critiques, Critique] {
 
@@ -137,45 +171,11 @@ object Critiques extends ResourceCollection[Critiques, Critique] {
   /**
     * @inheritdoc
     */
+  // TODO: Only allow certain users to critique a Project
   def canCreate(resourceId: Option[UUID],
                 userId: Option[UUID],
                 data: JsObject = Json.obj()): Boolean =
     userId.nonEmpty
 
-
 }
 
-/**
-  * A [[slick.profile.RelationalTableComponent.Table]] for [[Critique]]s
-  * @param tag @see [[slick.lifted.Tag]]
-  */
-class Critiques(tag: Tag)
-  extends Table[Critique](tag, "critiques")
-  with Columns.Id[Critique]
-  with Columns.OwnerId[Critique]
-  with ForeignKeys.Owner[Critique] {
-
-  /**
-    * @see [[Critique.content]]
-    */
-  def content =
-    column[String]("content")
-
-  /**
-    * @see [[Critique.projectDraftId]]
-    */
-  def projectDraftId =
-    column[UUID]("project_draft_id")
-
-  /**
-    * @inheritdoc
-    */
-  def * =
-    (id, ownerId, projectDraftId, content).<>(Critique.tupled, Critique.unapply)
-
-  /**
-    * Foreign key for [[Critique.projectDraftId]]
-    */
-  def projectDraft =
-    foreignKey("fk_project_draft", projectDraftId, tableQueries.projectDrafts)(_.id)
-}

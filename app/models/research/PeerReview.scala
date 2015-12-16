@@ -4,8 +4,12 @@ import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.Ownable
+import play.api.libs.json.{JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
+import system.helpers.{Resource, PropertyValidators, ResourceCollection}
 import system.helpers.SlickHelper._
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * Represents a student or peer's peerReview of a [[Project]]
@@ -17,7 +21,7 @@ import system.helpers.SlickHelper._
 case class PeerReview(id: UUID,
                       ownerId: UUID,
                       projectDraftId: UUID,
-                      content: String) extends Ownable {
+                      content: String) extends Ownable with Resource {
 
   /**
     * The [[ProjectDraft]] being reviewed
@@ -60,3 +64,101 @@ class PeerReviews(tag: Tag)
   def projectDraft =
     foreignKey("fk_project_draft", projectDraftId, tableQueries.projectDrafts)(_.id)
 }
+
+object PeerReviews extends ResourceCollection[PeerReviews, PeerReview] {
+
+  /**
+    * @inheritdoc
+    */
+  val tableQuery =
+    TableQuery[PeerReviews]
+
+  /**
+    * @inheritdoc
+    */
+  implicit val writes =
+    Json.writes[PeerReview]
+
+  /**
+    * @inheritdoc
+    */
+  val validaters =
+    Set(
+      ("ownerId", true, Set(PropertyValidators.uuid4 _)),
+      ("projectDraftId", true, Set(PropertyValidators.uuid4 _)),
+      ("content", true, Set[JsValue => Option[Int]]())
+    )
+
+  /**
+    * @inheritdoc
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[PeerReview]]
+    */
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]) =
+    PeerReview(
+      uuid,
+      arguments("ownerId").as[UUID],
+      arguments("projectDraftId").as[UUID],
+      arguments("content").as[String]
+    )
+
+  /**
+    * @inheritdoc
+    * @param row A [[PeerReview]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[PeerReview]]
+    */
+  def updater(row: PeerReview,
+              arguments: Map[String, JsValue]) =
+    row.copy(
+      row.id,
+      row.ownerId,
+      row.projectDraftId,
+      arguments.get("content")
+        .fold(row.content)(_.as[String])
+    )
+
+
+  /**
+    * @inheritdoc
+    */
+  def canRead(resourceId: Option[UUID],
+              userId: Option[UUID],
+              data: JsObject = Json.obj()): Boolean =
+    Try(resourceId.get.toInstance[PeerReviews, PeerReview](tableQueries.peerReviews)) match {
+      case Success(instance) =>
+        userId.fold(false)(_ == instance.ownerId) ||
+          userId.fold(false)(_ == instance.projectDraft.project.ownerId)
+      case Failure(_) =>
+        false
+    }
+
+  /**
+    * @inheritdoc
+    */
+  def canDelete(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
+
+  /**
+    * @inheritdoc
+    */
+  def canModify(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
+
+  /**
+    * @inheritdoc
+    */
+  // TODO: Only allow certain users to critique a Project
+  def canCreate(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    userId.nonEmpty
+
+}
+

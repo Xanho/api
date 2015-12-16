@@ -4,19 +4,23 @@ import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.OptionallyOwnable
+import play.api.libs.json.{Writes, JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
+import system.helpers.{Resource, PropertyValidators, ResourceCollection}
 import system.helpers.SlickHelper._
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * Represents a microdegree or unit, which covers a specific area
   * @param id The microdegree's ID
-  * @param name The microdegree's name or title
+  * @param title The microdegree's name or title
   * @param ownerId The optional [[models.User]] owner of this microdegree.  If [[None]], then
   *                this microdegree is considered to be owned by the public.
   */
 case class Microdegree(id: UUID,
-                       name: String,
-                       ownerId: Option[UUID]) extends OptionallyOwnable
+                       title: String,
+                       ownerId: Option[UUID]) extends OptionallyOwnable with Resource
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[Microdegree]]s
@@ -25,7 +29,7 @@ case class Microdegree(id: UUID,
 class Microdegrees(tag: Tag)
   extends Table[Microdegree](tag, "microdegrees")
   with Columns.Id[Microdegree]
-  with Columns.Name[Microdegree]
+  with Columns.Title[Microdegree]
   with Columns.OptionalOwnerId[Microdegree]
   with ForeignKeys.OptionalOwner[Microdegree] {
 
@@ -33,170 +37,99 @@ class Microdegrees(tag: Tag)
     * @see [[slick.profile.RelationalTableComponent.Table.*]]
     */
   def * =
-    (id, name, ownerId).<>(Microdegree.tupled, Microdegree.unapply)
+    (id, title, ownerId).<>(Microdegree.tupled, Microdegree.unapply)
 
 }
 
-/**
-  * Represents a revision to a [[Microdegree]]
-  * @param id The revision's ID
-  * @param revisionNumber The revision number
-  * @param microdegreeId @see [[Microdegree.id]]
-  * @param proposalId @see [[MicrodegreeRevisionProposal.id]]
-  */
-case class MicrodegreeRevision(id: UUID,
-                               revisionNumber: Int,
-                               microdegreeId: UUID,
-                               proposalId: UUID) {
-
-  /**
-    * The parent [[Microdegree]] of this revision
-    */
-  lazy val microdegree: Microdegree =
-    microdegreeId.fk[Microdegrees, Microdegree](tableQueries.microdegrees)
-
-  /**
-    * The [[MicrodegreeRevisionProposal]] used for this revision
-    */
-  lazy val microdegreeRevisionProposal: MicrodegreeRevisionProposal =
-    proposalId.fk[MicrodegreeRevisionProposals, MicrodegreeRevisionProposal](tableQueries.microdegreeRevisionProposals)
-
-}
-
-/**
-  * A [[slick.profile.RelationalTableComponent.Table]] for [[MicrodegreeRevision]]s
-  * @param tag @see [[slick.lifted.Tag]]
-  */
-class MicrodegreeRevisions(tag: Tag)
-  extends Table[MicrodegreeRevision](tag, "microdegree_revisions")
-  with Columns.Id[MicrodegreeRevision]
-  with Columns.RevisionNumber[MicrodegreeRevision]
-  with Columns.MicrodegreeId[MicrodegreeRevision]
-  with Columns.ProposalId[MicrodegreeRevision]
-  with ForeignKeys.Microdegree[MicrodegreeRevision] {
+object Microdegrees extends ResourceCollection[Microdegrees, Microdegree] {
 
   /**
     * @inheritdoc
     */
-  def * =
-    (id, revisionNumber, microdegreeId, proposalId).<>(MicrodegreeRevision.tupled, MicrodegreeRevision.unapply)
-
-  /**
-    * The proposal used in this revision
-    */
-  def proposal =
-    foreignKey("fk_proposal", proposalId, tableQueries.microdegreeRevisionProposals)(_.id)
-}
-
-/**
-  * Represents a proposed [[MicrodegreeRevision]] to a [[Microdegree]]
-  * @param id The Microdegree Revision Proposal's ID
-  * @param microdegreeId @see [[Microdegree.id]]
-  * @param newRevisionNumber The next/target revision number.  @see [[MicrodegreeRevision.revisionNumber]]
-  *                          For example, if the currently active revision number is 19, then the newRevisionNumber would be 20
-  * @param content The microdegree's content and materials
-  */
-case class MicrodegreeRevisionProposal(id: UUID,
-                                       microdegreeId: UUID,
-                                       newRevisionNumber: Int,
-                                       content: String) {
-
-  /**
-    * The parent [[Microdegree]] of this revision
-    */
-  lazy val microdegree: Microdegree =
-    microdegreeId.fk[Microdegrees, Microdegree](tableQueries.microdegrees)
-
-}
-
-/**
-  * A [[slick.profile.RelationalTableComponent.Table]] for [[MicrodegreeRevisionProposal]]s
-  * @param tag @see [[slick.lifted.Tag]]
-  */
-class MicrodegreeRevisionProposals(tag: Tag)
-  extends Table[MicrodegreeRevisionProposal](tag, "microdegree_revision_proposals")
-  with Columns.Id[MicrodegreeRevisionProposal]
-  with Columns.AuthorId[MicrodegreeRevisionProposal]
-  with Columns.MicrodegreeId[MicrodegreeRevisionProposal]
-  with Columns.NewRevisionNumber[MicrodegreeRevisionProposal]
-  with ForeignKeys.Author[MicrodegreeRevisionProposal]
-  with ForeignKeys.Microdegree[MicrodegreeRevisionProposal] {
-
-  /**
-    * @see [[MicrodegreeRevisionProposal.content]]
-    */
-  def content =
-    column[String]("content")
+  val tableQuery =
+    TableQuery[Microdegrees]
 
   /**
     * @inheritdoc
     */
-  def * =
-    (id, microdegreeId, newRevisionNumber, content).<>(MicrodegreeRevisionProposal.tupled, MicrodegreeRevisionProposal.unapply)
-
-}
-
-/**
-  * Represents a Topic Requirement for completion of a Microdegree
-  * @param id The requirement ID
-  * @param microdegreeRevisionProposalId @see [[MicrodegreeRevisionProposal.id]]
-  * @param topicId @see [[Topic.id]]
-  * @param minimumRevision @see [[TopicRevision.revisionNumber]]
-  * @param maximumRevision @see [[TopicRevision.revisionNumber]]
-  */
-case class TopicRequirement(id: UUID,
-                            microdegreeRevisionProposalId: UUID,
-                            topicId: UUID,
-                            minimumRevision: Option[Int],
-                            maximumRevision: Option[Int]) {
-
-  /**
-    * The [[MicrodegreeRevisionProposal]] in which this requirement is used
-    */
-  lazy val microdegreeRevisionProposal: MicrodegreeRevisionProposal =
-    microdegreeRevisionProposalId.fk[MicrodegreeRevisionProposals, MicrodegreeRevisionProposal](tableQueries.microdegreeRevisionProposals)
-
-  /**
-    * The [[Topic]] used for this revision
-    */
-  lazy val topic: Topic =
-    topicId.fk[Topics, Topic](tableQueries.topics)
-
-}
-
-/**
-  * A [[slick.profile.RelationalTableComponent.Table]] for [[TopicRequirement]]s
-  * @param tag @see [[slick.lifted.Tag]]
-  */
-class TopicRequirements(tag: Tag)
-  extends Table[TopicRequirement](tag, "topic_requirement")
-  with Columns.Id[TopicRequirement]
-  with Columns.ProposalId[TopicRequirement]
-  with Columns.TopicId[TopicRequirement]
-  with ForeignKeys.Topic[TopicRequirement] {
-
-  /**
-    * @see [[TopicRequirement.minimumRevision]]
-    */
-  def minimumRevision =
-    column[Option[Int]]("minimum_revision")
-
-  /**
-    * @see [[TopicRequirement.maximumRevision]]
-    */
-  def maximumRevision =
-    column[Option[Int]]("maximum_revision")
+  implicit val writes: Writes[Microdegree] =
+    Json.writes[Microdegree]
 
   /**
     * @inheritdoc
-    * @return
     */
-  def * =
-    (id, proposalId, topicId, minimumRevision, maximumRevision).<>(TopicRequirement.tupled, TopicRequirement.unapply)
+  val validaters =
+    Set(
+      ("name", true, Set(PropertyValidators.title _)),
+      ("ownerId", false, Set(PropertyValidators.uuid4 _))
+    )
 
   /**
-    * The proposal containing this requirement
+    * @inheritdoc
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[Microdegree]]
     */
-  def proposal =
-    foreignKey("fk_proposal", proposalId, tableQueries.microdegreeRevisionProposals)(_.id)
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]) =
+    Microdegree(
+      uuid,
+      arguments("title").as[String],
+      arguments("ownerId").asOpt[UUID]
+    )
+
+  /**
+    * @inheritdoc
+    * @param row A [[Microdegree]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[Microdegree]]
+    */
+  def updater(row: Microdegree,
+              arguments: Map[String, JsValue]) =
+    row.copy(
+      row.id,
+      arguments.get("title")
+        .fold(row.title)(_.as[String]),
+      row.ownerId
+    )
+
+
+  /**
+    * @inheritdoc
+    */
+  def canRead(resourceId: Option[UUID],
+              userId: Option[UUID],
+              data: JsObject = Json.obj()): Boolean =
+    true
+
+  /**
+    * @inheritdoc
+    */
+  def canDelete(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
+
+  /**
+    * @inheritdoc
+    */
+  def canModify(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    Try(resourceId.get.toInstance[Microdegrees, Microdegree](tableQueries.microdegrees)) match {
+      case Success(instance) =>
+        userId.fold(false)(uid => instance.ownerId.fold(true)(_ == uid))
+      case Failure(_) =>
+        false
+    }
+
+  /**
+    * @inheritdoc
+    */
+  def canCreate(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    userId.nonEmpty
+
 }
+

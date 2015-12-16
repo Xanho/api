@@ -4,19 +4,23 @@ import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
 import models.helpers.OptionallyOwnable
+import play.api.libs.json.{Writes, JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
+import system.helpers.{PropertyValidators, ResourceCollection, Resource}
 import system.helpers.SlickHelper._
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * Represents a topic or unit, which covers a specific area
   * @param id The topic's ID
-  * @param name The topic's name or title
+  * @param title The topic's name or title
   * @param ownerId The optional [[models.User]] owner of this topic.  If [[None]], then
   *                this topic is considered to be owned by the public.
   */
 case class Topic(id: UUID,
-                 name: String,
-                 ownerId: Option[UUID]) extends OptionallyOwnable
+                 title: String,
+                 ownerId: Option[UUID]) extends OptionallyOwnable with Resource
 
 /**
   * A [[slick.profile.RelationalTableComponent.Table]] for [[Topic]]s
@@ -25,7 +29,7 @@ case class Topic(id: UUID,
 class Topics(tag: Tag)
   extends Table[Topic](tag, "topics")
   with Columns.Id[Topic]
-  with Columns.Name[Topic]
+  with Columns.Title[Topic]
   with Columns.OptionalOwnerId[Topic]
   with ForeignKeys.OptionalOwner[Topic] {
 
@@ -33,105 +37,99 @@ class Topics(tag: Tag)
     * @see [[slick.profile.RelationalTableComponent.Table.*]]
     */
   def * =
-    (id, name, ownerId).<>(Topic.tupled, Topic.unapply)
+    (id, title, ownerId).<>(Topic.tupled, Topic.unapply)
 
 }
 
-/**
-  * Represents a revision to a [[Topic]]
-  * @param id The revision's ID
-  * @param revisionNumber The revision number
-  * @param topicId @see [[Topic.id]]
-  * @param topicRevisionProposalId @see [[TopicRevisionProposal.id]]
-  */
-case class TopicRevision(id: UUID,
-                         revisionNumber: Int,
-                         topicId: UUID,
-                         topicRevisionProposalId: UUID) {
-
-  /**
-    * The parent [[Topic]] of this revision
-    */
-  lazy val topic: Topic =
-    topicId.fk[Topics, Topic](tableQueries.topics)
-
-  /**
-    * The parent [[TopicRevisionProposal]] of this revision
-    */
-  lazy val topicRevisionProposal: TopicRevisionProposal =
-    topicRevisionProposalId.fk[TopicRevisionProposals, TopicRevisionProposal](tableQueries.topicRevisionProposals)
-
-}
-
-/**
-  * A [[slick.profile.RelationalTableComponent.Table]] for [[TopicRevision]]s
-  * @param tag @see [[slick.lifted.Tag]]
-  */
-class TopicRevisions(tag: Tag)
-  extends Table[TopicRevision](tag, "topic_revisions")
-  with Columns.Id[TopicRevision]
-  with Columns.RevisionNumber[TopicRevision]
-  with Columns.TopicId[TopicRevision]
-  with Columns.ProposalId[TopicRevision]
-  with ForeignKeys.Topic[TopicRevision] {
+object Topics extends ResourceCollection[Topics, Topic] {
 
   /**
     * @inheritdoc
     */
-  def * =
-    (id, revisionNumber, topicId, proposalId).<>(TopicRevision.tupled, TopicRevision.unapply)
-
-  /**
-    * Foreign Key to a [[TopicRevisionProposal]]
-    */
-  def proposal =
-    foreignKey("fk_proposal", proposalId, tableQueries.topicRevisionProposals)(_.id)
-}
-
-/**
-  * Represents a proposed [[TopicRevision]] to a [[Topic]]
-  * @param id The Topic Revision Proposal's ID
-  * @param topicId @see [[Topic.id]]
-  * @param newRevisionNumber The next/target revision number.  @see [[TopicRevision.revisionNumber]]
-  *                          For example, if the currently active revision number is 19, then the newRevisionNumber would be 20
-  * @param content The topic's content and materials
-  */
-case class TopicRevisionProposal(id: UUID,
-                                 topicId: UUID,
-                                 newRevisionNumber: Int,
-                                 content: String) {
-
-  /**
-    * The parent [[Topic]] of this revision
-    */
-  lazy val topic: Topic =
-    topicId.fk[Topics, Topic](tableQueries.topics)
-
-}
-
-/**
-  * A [[slick.profile.RelationalTableComponent.Table]] for [[TopicRevisionProposal]]s
-  * @param tag @see [[slick.lifted.Tag]]
-  */
-class TopicRevisionProposals(tag: Tag)
-  extends Table[TopicRevisionProposal](tag, "topic_revision_proposals")
-  with Columns.Id[TopicRevisionProposal]
-  with Columns.AuthorId[TopicRevisionProposal]
-  with Columns.TopicId[TopicRevisionProposal]
-  with Columns.NewRevisionNumber[TopicRevisionProposal]
-  with ForeignKeys.Author[TopicRevisionProposal]
-  with ForeignKeys.Topic[TopicRevisionProposal] {
-
-  /**
-    * @see [[TopicRevisionProposal.content]]
-    */
-  def content =
-    column[String]("content")
+  val tableQuery =
+    TableQuery[Topics]
 
   /**
     * @inheritdoc
     */
-  def * =
-    (id, topicId, newRevisionNumber, content).<>(TopicRevisionProposal.tupled, TopicRevisionProposal.unapply)
+  implicit val writes: Writes[Topic] =
+    Json.writes[Topic]
+
+  /**
+    * @inheritdoc
+    */
+  val validaters =
+    Set(
+      ("name", true, Set(PropertyValidators.title _)),
+      ("ownerId", false, Set(PropertyValidators.uuid4 _))
+    )
+
+  /**
+    * @inheritdoc
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[Topic]]
+    */
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]) =
+    Topic(
+      uuid,
+      arguments("title").as[String],
+      arguments("ownerId").asOpt[UUID]
+    )
+
+  /**
+    * @inheritdoc
+    * @param row A [[Topic]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[Topic]]
+    */
+  def updater(row: Topic,
+              arguments: Map[String, JsValue]) =
+    row.copy(
+      row.id,
+      arguments.get("title")
+        .fold(row.title)(_.as[String]),
+      row.ownerId
+    )
+
+
+  /**
+    * @inheritdoc
+    */
+  def canRead(resourceId: Option[UUID],
+              userId: Option[UUID],
+              data: JsObject = Json.obj()): Boolean =
+    true
+
+  /**
+    * @inheritdoc
+    */
+  def canDelete(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
+
+  /**
+    * @inheritdoc
+    */
+  def canModify(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    Try(resourceId.get.toInstance[Topics, Topic](tableQueries.topics)) match {
+      case Success(instance) =>
+        userId.fold(false)(uid => instance.ownerId.fold(true)(_ == uid))
+      case Failure(_) =>
+        false
+    }
+
+  /**
+    * @inheritdoc
+    */
+  def canCreate(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    userId.nonEmpty
 
 }
+

@@ -3,8 +3,12 @@ package models.research
 import java.util.UUID
 
 import models.Helpers.Columns
+import play.api.libs.json.{Writes, JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
 import system.helpers.SlickHelper._
+import system.helpers.{Resource, PropertyValidators, ResourceCollection, SlickHelper}
+
+import scala.util.{Failure, Success, Try}
 
 
 /**
@@ -17,7 +21,7 @@ import system.helpers.SlickHelper._
 case class ProjectDraft(id: UUID,
                         revisionNumber: Int,
                         projectId: UUID,
-                        content: String) {
+                        content: String) extends Resource {
 
   /**
     * The [[Project]] to which this draft belongs
@@ -61,3 +65,114 @@ class ProjectDrafts(tag: Tag)
     foreignKey("fk_project", projectId, tableQueries.projects)(_.id)
 
 }
+
+object ProjectDrafts extends ResourceCollection[ProjectDrafts, ProjectDraft] {
+
+  /**
+    * @inheritdoc
+    */
+  val tableQuery =
+    TableQuery[ProjectDrafts]
+
+  /**
+    * @inheritdoc
+    */
+  implicit val writes: Writes[ProjectDraft] =
+    Json.writes[ProjectDraft]
+
+  /**
+    * @inheritdoc
+    */
+  val validaters =
+    Set(
+      ("ownerId", true, Set(PropertyValidators.uuid4 _)),
+      ("projectDraftId", true, Set(PropertyValidators.uuid4 _)),
+      ("content", true, Set[JsValue => Option[Int]]())
+    )
+
+  /**
+    * @inheritdoc
+    * @param uuid The UUID to use in the creation
+    * @param arguments A map containing values to be updated
+    * @return A new [[ProjectDraft]]
+    */
+  def creator(uuid: UUID,
+              arguments: Map[String, JsValue]) =
+    ProjectDraft(
+      uuid,
+      SlickHelper.queryResult(
+        tableQuery
+          .filter(_.projectId === arguments("projectId").as[UUID])
+          .map(_.revisionNumber).max.result
+      ).getOrElse(0),
+      arguments("projectId").as[UUID],
+      arguments("content").as[String]
+    )
+
+  /**
+    * @inheritdoc
+    * @param row A [[ProjectDraft]]
+    * @param arguments A map containing values to be updated
+    * @return A new [[ProjectDraft]]
+    */
+  def updater(row: ProjectDraft,
+              arguments: Map[String, JsValue]) =
+    row.copy(
+      row.id,
+      row.revisionNumber,
+      row.projectId,
+      arguments.get("content")
+        .fold(row.content)(_.as[String])
+    )
+
+
+  /**
+    * @inheritdoc
+    */
+  def canRead(resourceId: Option[UUID],
+              userId: Option[UUID],
+              data: JsObject = Json.obj()): Boolean =
+    Try(resourceId.get.toInstance[ProjectDrafts, ProjectDraft](tableQueries.projectDrafts)) match {
+      case Success(instance) =>
+        userId.fold(false)(_ == instance.project.ownerId)
+      case Failure(_) =>
+        false
+    }
+
+  /**
+    * @inheritdoc
+    */
+  def canDelete(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    Try(resourceId.get.toInstance[ProjectDrafts, ProjectDraft](tableQueries.projectDrafts)) match {
+      case Success(instance) =>
+        userId.fold(false)(_ == instance.project.ownerId)
+      case Failure(_) =>
+        false
+    }
+
+  /**
+    * @inheritdoc
+    */
+  def canModify(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    false
+
+  /**
+    * @inheritdoc
+    */
+  def canCreate(resourceId: Option[UUID],
+                userId: Option[UUID],
+                data: JsObject = Json.obj()): Boolean =
+    (data \ "projectId").asOpt[UUID]
+      .fold(false)(pid =>
+        userId
+          .fold(false)(uid =>
+            pid.toInstance[Projects, Project](tableQueries.projects).ownerId == uid
+          )
+      )
+
+}
+

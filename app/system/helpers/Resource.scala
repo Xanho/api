@@ -52,7 +52,7 @@ trait ResourceCollection[T <: Table[R] with Columns.Id[R], R <: Resource] {
     * @param arguments A key-value argument pair
     * @return An optional [[R]]
     */
-  def create(arguments: Map[String, JsValue]): Option[R] =  {
+  def create(arguments: Map[String, JsValue]): Option[R] = {
     val uuid =
       system.helpers.uuid
 
@@ -218,16 +218,55 @@ object PropertyValidators {
         _ => s.validate[String](__.read(minLength[String](2)))
           .fold(
             _ => Some(PropertyErrorCodes.TOO_SHORT),
-            _ => s.validate[String](maxLength[String](20))
+            _ => s.validate[String](maxLength[String](30))
               .fold(
                 _ => Some(PropertyErrorCodes.TOO_LONG), {
                   case namePattern(_*) =>
                     None
                   case _ =>
-                    Some(PropertyErrorCodes.NOT_UUID)
+                    Some(PropertyErrorCodes.NOT_NAME)
                 }
               )
+          )
+      )
 
+  /**
+    * Validates a title field
+    * @param s The given input
+    * @return An optional error code
+    */
+  def title(s: JsValue): Option[Int] =
+    s.validate(__.read[JsString])
+      .fold(
+        _ => Some(PropertyErrorCodes.INVALID_TYPE),
+        _ => s.validate[String](__.read(minLength[String](2)))
+          .fold(
+            _ => Some(PropertyErrorCodes.TOO_SHORT),
+            _ => s.validate[String](maxLength[String](100))
+              .fold(
+                _ => Some(PropertyErrorCodes.TOO_LONG), {
+                  case namePattern(_*) =>
+                    None
+                  case _ =>
+                    Some(PropertyErrorCodes.NOT_TITLE)
+                }
+              )
+          )
+      )
+
+  /**
+    * Validates a content field
+    * @param s The given input
+    * @return An optional error code
+    */
+  def content(s: JsValue): Option[Int] =
+    s.validate(__.read[JsString])
+      .fold(
+        _ => Some(PropertyErrorCodes.INVALID_TYPE),
+        _ => s.validate[String](__.read(minLength[String](100)))
+          .fold(
+            _ => Some(PropertyErrorCodes.TOO_SHORT),
+            _ => None
           )
       )
 
@@ -275,6 +314,18 @@ object PropertyValidators {
       )
 
   /**
+    * Validates an integer field
+    * @param s The given input
+    * @return An optional error code
+    */
+  def integer(s: JsValue): Option[Int] =
+    s.validate(__.read[Int])
+      .fold(
+        _ => Some(PropertyErrorCodes.INVALID_TYPE),
+        _ => None
+      )
+
+  /**
     * Validates a UUID4
     * @param s The given input
     * @return An optional error code
@@ -312,6 +363,8 @@ object PropertyValidators {
     val INVALID_CHARACTERS = 5
     val NOT_COMPLEX_ENOUGH = 6
     val NOT_UUID = 7
+    val NOT_NAME = 8
+    val NOT_TITLE = 9
   }
 
 }
