@@ -42,12 +42,8 @@ class MicrodegreeRevisionProposals(tag: Tag)
   extends Table[MicrodegreeRevisionProposal](tag, "microdegree_revision_proposals")
   with Columns.Id[MicrodegreeRevisionProposal]
   with Columns.OwnerId[MicrodegreeRevisionProposal]
-  with Columns.AuthorId[MicrodegreeRevisionProposal]
   with Columns.MicrodegreeId[MicrodegreeRevisionProposal]
-  with Columns.NewRevisionNumber[MicrodegreeRevisionProposal]
-  with ForeignKeys.Owner[MicrodegreeRevisionProposal]
-  with ForeignKeys.Author[MicrodegreeRevisionProposal]
-  with ForeignKeys.Microdegree[MicrodegreeRevisionProposal] {
+  with Columns.NewRevisionNumber[MicrodegreeRevisionProposal] {
 
   /**
     * @see [[MicrodegreeRevisionProposal.content]]
@@ -60,6 +56,12 @@ class MicrodegreeRevisionProposals(tag: Tag)
     */
   def * =
     (id, ownerId, microdegreeId, newRevisionNumber, content).<>(MicrodegreeRevisionProposal.tupled, MicrodegreeRevisionProposal.unapply)
+
+  def owner =
+    foreignKey("fk_microdegree_revision_proposal_owner_id", ownerId, models.tableQueries.users)(_.id)
+
+  def microdegree =
+    foreignKey("fk_microdegree_revision_proposal_microdegree_id", microdegreeId, tableQueries.microdegrees)(_.id)
 
 }
 

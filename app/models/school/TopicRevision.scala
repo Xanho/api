@@ -46,8 +46,7 @@ class TopicRevisions(tag: Tag)
   with Columns.Id[TopicRevision]
   with Columns.RevisionNumber[TopicRevision]
   with Columns.TopicId[TopicRevision]
-  with Columns.ProposalId[TopicRevision]
-  with ForeignKeys.Topic[TopicRevision] {
+  with Columns.ProposalId[TopicRevision] {
 
   /**
     * @inheritdoc
@@ -55,11 +54,14 @@ class TopicRevisions(tag: Tag)
   def * =
     (id, revisionNumber, topicId, proposalId).<>(TopicRevision.tupled, TopicRevision.unapply)
 
+  def topic =
+    foreignKey("fk_topic_revision_topic_id", topicId, tableQueries.topics)(_.id)
+
   /**
-    * Foreign Key to a [[TopicRevisionProposal]]
+    * The proposal used in this revision
     */
   def proposal =
-    foreignKey("fk_proposal", proposalId, tableQueries.topicRevisionProposals)(_.id)
+    foreignKey("fk_topic_revision_proposal_id", proposalId, tableQueries.topicRevisionProposals)(_.id)
 }
 
 object TopicRevisions extends ResourceCollection[TopicRevisions, TopicRevision] {

@@ -3,6 +3,7 @@ package models.school
 import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
+import models.helpers.Ownable
 import play.api.libs.json.{Writes, JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
 import system.helpers.SlickHelper._
@@ -20,9 +21,10 @@ import scala.util.{Failure, Success, Try}
   * @param content The topic's content and materials
   */
 case class TopicRevisionProposal(id: UUID,
+                                 ownerId: UUID,
                                  topicId: UUID,
                                  newRevisionNumber: Int,
-                                 content: String) extends Resource  {
+                                 content: String) extends Resource with Ownable {
 
   /**
     * The parent [[Topic]] of this revision
@@ -39,11 +41,9 @@ case class TopicRevisionProposal(id: UUID,
 class TopicRevisionProposals(tag: Tag)
   extends Table[TopicRevisionProposal](tag, "topic_revision_proposals")
   with Columns.Id[TopicRevisionProposal]
-  with Columns.AuthorId[TopicRevisionProposal]
+  with Columns.OwnerId[TopicRevisionProposal]
   with Columns.TopicId[TopicRevisionProposal]
-  with Columns.NewRevisionNumber[TopicRevisionProposal]
-  with ForeignKeys.Author[TopicRevisionProposal]
-  with ForeignKeys.Topic[TopicRevisionProposal] {
+  with Columns.NewRevisionNumber[TopicRevisionProposal] {
 
   /**
     * @see [[TopicRevisionProposal.content]]
@@ -55,7 +55,13 @@ class TopicRevisionProposals(tag: Tag)
     * @inheritdoc
     */
   def * =
-    (id, topicId, newRevisionNumber, content).<>(TopicRevisionProposal.tupled, TopicRevisionProposal.unapply)
+    (id, ownerId, topicId, newRevisionNumber, content).<>(TopicRevisionProposal.tupled, TopicRevisionProposal.unapply)
+
+  def owner =
+    foreignKey("fk_topic_revision_proposal_owner_id", ownerId, models.tableQueries.users)(_.id)
+
+  def topic =
+    foreignKey("fk_topic_revision_proposal_topic_id", topicId, tableQueries.topics)(_.id)
 
 }
 
@@ -93,6 +99,7 @@ object TopicRevisionProposals extends ResourceCollection[TopicRevisionProposals,
               arguments: Map[String, JsValue]) =
     TopicRevisionProposal(
       uuid,
+      arguments("ownerId").as[UUID],
       arguments("topicId").as[UUID],
       SlickHelper.queryResult(
         TopicRevisions.tableQuery

@@ -62,7 +62,7 @@ class ProjectDrafts(tag: Tag)
     * Foreign key to the [[Project]]
     */
   def project =
-    foreignKey("fk_project", projectId, tableQueries.projects)(_.id)
+    foreignKey("fk_draft_project_id", projectId, tableQueries.projects)(_.id)
 
 }
 

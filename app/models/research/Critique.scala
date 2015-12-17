@@ -54,8 +54,7 @@ case class Critique(id: UUID,
 class Critiques(tag: Tag)
   extends Table[Critique](tag, "critiques")
   with Columns.Id[Critique]
-  with Columns.OwnerId[Critique]
-  with ForeignKeys.Owner[Critique] {
+  with Columns.OwnerId[Critique] {
 
   /**
     * @see [[Critique.content]]
@@ -74,6 +73,9 @@ class Critiques(tag: Tag)
     */
   def * =
     (id, ownerId, projectDraftId, content).<>(Critique.tupled, Critique.unapply)
+
+  def owner =
+    foreignKey("fk_critique_owner_id", ownerId, models.tableQueries.users)(_.id)
 
   /**
     * Foreign key for [[Critique.projectDraftId]]
