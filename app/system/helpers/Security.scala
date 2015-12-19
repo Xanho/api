@@ -25,19 +25,28 @@ case class ParsedRequest[A](userId: Option[UUID],
                             request: Request[A],
                             data: JsObject) extends WrappedRequest[A](request)
 
+trait Secured {
+
+  def Authorized(resourceId: Option[UUID],
+                 authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean] = Set(),
+                 acceptedContentTypes: Set[String] = Set(),
+                 pathParameters: Map[String, JsValue] = Map()) =
+    AuthorizedAction(resourceId, authorizers, pathParameters)
+
+}
+
 /**
   * Represents an [[Action]] that requires [[Resource]] authorization
   * @param resourceId @see [[Resource.id]]
   * @param authorizers A set of functions which determine if the user can access the resource
-  * @param acceptedContentTypes A set of [[ContentTypes]] that the particular route accepts
   * @param pathParameters Any additional path parameters for the request
   */
-case class Authorized[A1](resourceId: Option[UUID],
-                          authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean],
-                          acceptedContentTypes: Set[String] = Set(),
-                          pathParameters: Map[String, JsValue] = Map())(block: ParsedRequest[A1] => Result) extends ActionBuilder[ParsedRequest] {
+case class AuthorizedAction(resourceId: Option[UUID],
+                          authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean] = Set(),
+                          pathParameters: Map[String, JsValue] = Map()) extends ActionBuilder[ParsedRequest] {
 
   import JwtPlayImplicits._
+
 
   /**
     *
@@ -56,7 +65,17 @@ case class Authorized[A1](resourceId: Option[UUID],
         .flatMap((u: JsObject) => (u \ "id").asOpt[UUID])
 
     val data =
-      parseBody(request.body) ++
+      (Try(parseBody(request.body.asInstanceOf[JsObject])) match {
+        case Success(b) =>
+          b
+        case _ =>
+          Try(parseBody(request.body.asInstanceOf[Map[String, Seq[String]]])) match {
+            case Success(m) =>
+              m
+            case _ =>
+              Json.obj()
+          }
+      }) ++
         JsObject(request.queryString map (kv => kv._1 -> Json.toJson(kv._2.mkString))) ++
         JsObject(pathParameters) ++
         JsObject(request.headers.toMap.map(kv => kv._1 -> Json.toJson(kv._2.mkString))) ++
@@ -74,22 +93,16 @@ case class Authorized[A1](resourceId: Option[UUID],
 
   }
 
-  /**
-    * Parses a [[Request.body]] by attempting to use each of provided [[acceptedContentTypes]]
-    * @param body @see [[Request.body]]
-    * @return A [[JsObject]] created using the body
-    */
-  def parseBody(body: Any) =
-    (acceptedContentTypes map {
-      case x if x == ContentTypes.FORM =>
-        Try(JsObject(body.asInstanceOf[Map[String, String]].map(kv => kv._1 -> Json.toJson(kv._2))))
-          .getOrElse(Json.obj())
-      case x if x == ContentTypes.JSON =>
-        Try(body.asInstanceOf[JsObject])
-          .getOrElse(Json.obj())
+  def parseBody(body: JsValue) =
+    body match {
+      case j: JsObject =>
+        j
       case _ =>
         Json.obj()
-    }).fold(Json.obj())(_ deepMerge _)
+    }
+
+  def parseBody(body: Map[String, Seq[String]]) =
+    JsObject(body.map(kv => kv._1 -> Json.toJson(kv._2)))
 
 }
 

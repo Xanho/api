@@ -41,7 +41,7 @@ package object helpers {
   /**
     * Generates a new [[java.util.UUID]]
     */
-  def uuid =
+  def uuid: UUID =
     java.util.UUID.randomUUID()
 
   /**

@@ -59,7 +59,7 @@ object Topics extends ResourceCollection[Topics, Topic] {
   /**
     * @inheritdoc
     */
-  val validaters =
+  val validators =
     Set(
       ("name", true, Set(PropertyValidators.title _)),
       ("ownerId", false, Set(PropertyValidators.uuid4 _))

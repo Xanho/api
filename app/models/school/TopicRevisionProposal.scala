@@ -82,7 +82,7 @@ object TopicRevisionProposals extends ResourceCollection[TopicRevisionProposals,
   /**
     * @inheritdoc
     */
-  val validaters =
+  val validators =
     Set(
       ("topicId", true, Set(PropertyValidators.uuid4 _)),
       ("ownerId", false, Set(PropertyValidators.uuid4 _)),

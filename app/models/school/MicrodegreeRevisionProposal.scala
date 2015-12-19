@@ -82,7 +82,7 @@ object MicrodegreeRevisionProposals extends ResourceCollection[MicrodegreeRevisi
   /**
     * @inheritdoc
     */
-  val validaters =
+  val validators =
     Set(
       ("microdegreeId", true, Set(PropertyValidators.uuid4 _)),
       ("ownerId", false, Set(PropertyValidators.uuid4 _)),
