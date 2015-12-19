@@ -40,7 +40,7 @@ class User extends CRUDController[Users, models.User] {
                 )(u => Ok.withNewJwtSession.addingToJwtSession("user", Json.toJson(u)))
           }
         }
-        )(_ => Unauthorized(ResponseHelpers.message("You are already logged.")))
+        )(_ => Unauthorized(ResponseHelpers.message("You are already logged in.")))
     }
     )
 

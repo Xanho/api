@@ -2,7 +2,6 @@ package system.helpers
 
 import java.util.UUID
 
-import _root_.play.api.http.ContentTypes
 import _root_.play.api.libs.json._
 import _root_.play.api.mvc.Codec._
 import _root_.play.api.mvc.Results._
@@ -42,14 +41,13 @@ trait Secured {
   * @param pathParameters Any additional path parameters for the request
   */
 case class AuthorizedAction(resourceId: Option[UUID],
-                          authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean] = Set(),
-                          pathParameters: Map[String, JsValue] = Map()) extends ActionBuilder[ParsedRequest] {
+                            authorizers: Set[(Option[UUID], Option[UUID], JsObject) => Boolean] = Set(),
+                            pathParameters: Map[String, JsValue] = Map()) extends ActionBuilder[ParsedRequest] {
 
   import JwtPlayImplicits._
 
 
   /**
-    *
     * @inheritdoc
     * Ensures that for all of the [[authorizers]], the (optional) user is authorized to access the [[resourceId]].
     * If so, continues on with a [[ParsedRequest]] and refreshed the JWT Session Token
@@ -81,7 +79,7 @@ case class AuthorizedAction(resourceId: Option[UUID],
         JsObject(request.headers.toMap.map(kv => kv._1 -> Json.toJson(kv._2.mkString))) ++
         Json.obj("userId" -> userId)
 
-    Try(authorizers forall (authorizer => authorizer(userId, resourceId, data))) match {
+    Try(authorizers forall (authorizer => authorizer(resourceId, userId, data))) match {
       case Success(true) =>
         block(ParsedRequest(userId, request, data))
           .map(_.refreshJwtSession(request))

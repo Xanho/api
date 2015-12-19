@@ -3,7 +3,7 @@ package models.school
 import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json.{Writes, JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
 import system.helpers.{Resource, SlickHelper, PropertyValidators, ResourceCollection}
 import system.helpers.SlickHelper._
@@ -75,7 +75,7 @@ object TopicRevisions extends ResourceCollection[TopicRevisions, TopicRevision] 
   /**
     * @inheritdoc
     */
-  implicit val writes =
+  implicit val writes: Writes[TopicRevision] =
     Json.writes[TopicRevision]
 
   /**

@@ -51,6 +51,12 @@ package object school {
     val topicRequirements =
       TableQuery[school.TopicRequirements]
 
+    /**
+      * The [[TableQuery]] for [[school.Enrollments]]
+      */
+    val enrollments =
+      TableQuery[school.Enrollments]
+
   }
 
 

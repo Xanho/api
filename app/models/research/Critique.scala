@@ -21,7 +21,8 @@ import scala.util.{Failure, Success, Try}
 case class Critique(id: UUID,
                     ownerId: UUID,
                     projectDraftId: UUID,
-                    content: String) extends Ownable with Resource {
+                    content: String,
+                    score: Int) extends Ownable with Resource {
 
   /**
     * The [[ProjectDraft]] being critiqued
@@ -69,10 +70,16 @@ class Critiques(tag: Tag)
     column[UUID]("project_draft_id")
 
   /**
+    * @see [[Critique.score]]
+    */
+  def score =
+    column[Int]("score")
+
+  /**
     * @inheritdoc
     */
   def * =
-    (id, ownerId, projectDraftId, content).<>(Critique.tupled, Critique.unapply)
+    (id, ownerId, projectDraftId, content, score).<>(Critique.tupled, Critique.unapply)
 
   def owner =
     foreignKey("fk_critique_owner_id", ownerId, models.tableQueries.users)(_.id)
@@ -105,7 +112,8 @@ object Critiques extends ResourceCollection[Critiques, Critique] {
     Set(
       ("ownerId", true, Set(PropertyValidators.uuid4 _)),
       ("projectDraftId", true, Set(PropertyValidators.uuid4 _)),
-      ("content", true, Set[JsValue => Option[Int]]())
+      ("content", true, Set[JsValue => Option[Int]]()),
+      ("score", true, Set(PropertyValidators.score _))
     )
 
   /**
@@ -120,7 +128,8 @@ object Critiques extends ResourceCollection[Critiques, Critique] {
       uuid,
       arguments("ownerId").as[UUID],
       arguments("projectDraftId").as[UUID],
-      arguments("content").as[String]
+      arguments("content").as[String],
+      arguments("score").as[Int]
     )
 
   /**
@@ -136,7 +145,8 @@ object Critiques extends ResourceCollection[Critiques, Critique] {
       row.ownerId,
       row.projectDraftId,
       arguments.get("content")
-        .fold(row.content)(_.as[String])
+        .fold(row.content)(_.as[String]),
+      row.score
     )
 
 
