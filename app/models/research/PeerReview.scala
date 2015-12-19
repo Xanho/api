@@ -37,8 +37,7 @@ case class PeerReview(id: UUID,
 class PeerReviews(tag: Tag)
   extends Table[PeerReview](tag, "peer_reviews")
   with Columns.Id[PeerReview]
-  with Columns.OwnerId[PeerReview]
-  with ForeignKeys.Owner[PeerReview] {
+  with Columns.OwnerId[PeerReview] {
 
   /**
     * @see [[PeerReview.content]]
@@ -58,11 +57,14 @@ class PeerReviews(tag: Tag)
   def * =
     (id, ownerId, projectDraftId, content).<>(PeerReview.tupled, PeerReview.unapply)
 
+  def owner =
+    foreignKey("fk_peer_review_owner_id", ownerId, models.tableQueries.users)(_.id)
+
   /**
     * Foreign key for [[PeerReviews.projectDraftId]]
     */
   def projectDraft =
-    foreignKey("fk_project_draft", projectDraftId, tableQueries.projectDrafts)(_.id)
+    foreignKey("fk_peer_review_project_draft_id", projectDraftId, tableQueries.projectDrafts)(_.id)
 }
 
 object PeerReviews extends ResourceCollection[PeerReviews, PeerReview] {

@@ -44,8 +44,7 @@ class TopicRequirements(tag: Tag)
   extends Table[TopicRequirement](tag, "topic_requirement")
   with Columns.Id[TopicRequirement]
   with Columns.ProposalId[TopicRequirement]
-  with Columns.TopicId[TopicRequirement]
-  with ForeignKeys.Topic[TopicRequirement] {
+  with Columns.TopicId[TopicRequirement] {
 
   /**
     * @see [[TopicRequirement.minimumRevision]]
@@ -70,7 +69,10 @@ class TopicRequirements(tag: Tag)
     * The proposal containing this requirement
     */
   def proposal =
-    foreignKey("fk_proposal", proposalId, tableQueries.microdegreeRevisionProposals)(_.id)
+    foreignKey("fk_topic_requirement_microdegree_revision_proposal", proposalId, tableQueries.microdegreeRevisionProposals)(_.id)
+
+  def topic =
+    foreignKey("fk_topic_requirement_topic_id", topicId, tableQueries.topics)(_.id)
 
 }
 

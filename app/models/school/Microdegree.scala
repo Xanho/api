@@ -30,14 +30,16 @@ class Microdegrees(tag: Tag)
   extends Table[Microdegree](tag, "microdegrees")
   with Columns.Id[Microdegree]
   with Columns.Title[Microdegree]
-  with Columns.OptionalOwnerId[Microdegree]
-  with ForeignKeys.OptionalOwner[Microdegree] {
+  with Columns.OptionalOwnerId[Microdegree] {
 
   /**
     * @see [[slick.profile.RelationalTableComponent.Table.*]]
     */
   def * =
     (id, title, ownerId).<>(Microdegree.tupled, Microdegree.unapply)
+
+  def owner =
+    foreignKey("fk_microdegree_owner_id", ownerId, models.tableQueries.users)(_.id.?)
 
 }
 

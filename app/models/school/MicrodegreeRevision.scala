@@ -46,8 +46,7 @@ class MicrodegreeRevisions(tag: Tag)
   with Columns.Id[MicrodegreeRevision]
   with Columns.RevisionNumber[MicrodegreeRevision]
   with Columns.MicrodegreeId[MicrodegreeRevision]
-  with Columns.ProposalId[MicrodegreeRevision]
-  with ForeignKeys.Microdegree[MicrodegreeRevision] {
+  with Columns.ProposalId[MicrodegreeRevision] {
 
   /**
     * @inheritdoc
@@ -55,11 +54,14 @@ class MicrodegreeRevisions(tag: Tag)
   def * =
     (id, revisionNumber, microdegreeId, proposalId).<>(MicrodegreeRevision.tupled, MicrodegreeRevision.unapply)
 
+  def microdegree =
+    foreignKey("fk_microdegree_revision_microdegree_id", microdegreeId, tableQueries.microdegrees)(_.id)
+
   /**
     * The proposal used in this revision
     */
   def proposal =
-    foreignKey("fk_proposal", proposalId, tableQueries.microdegreeRevisionProposals)(_.id)
+    foreignKey("fk_microdegree_revision_proposal_id", proposalId, tableQueries.microdegreeRevisionProposals)(_.id)
 }
 
 object MicrodegreeRevisions extends ResourceCollection[MicrodegreeRevisions, MicrodegreeRevision] {

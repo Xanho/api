@@ -2,11 +2,11 @@ package models
 
 import java.util.UUID
 
+import _root_.play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import com.github.t3hnar.bcrypt._
 import models.Helpers.Columns
-import _root_.play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import slick.driver.MySQLDriver.api._
-import system.helpers.{Resource, PropertyValidators, ResourceCollection, SlickHelper}
+import system.helpers.{PropertyValidators, Resource, ResourceCollection}
 
 /**
   * A Xanho User/Member
@@ -70,7 +70,6 @@ class Users(tag: Tag)
     */
   def * =
     (id, firstName, lastName, email, boxcode).<>(User.tupled, User.unapply)
-
 }
 
 object Users extends ResourceCollection[Users, User] {

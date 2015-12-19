@@ -23,14 +23,16 @@ case class Project(id: UUID,
 class Projects(tag: Tag)
   extends Table[Project](tag, "projects")
   with Columns.Id[Project]
-  with Columns.OwnerId[Project]
-  with ForeignKeys.Owner[Project] {
+  with Columns.OwnerId[Project] {
 
   /**
     * @inheritdoc
     */
   def * =
     (id, ownerId).<>(Project.tupled, Project.unapply)
+
+  def owner =
+    foreignKey("fk_project_owner_id", ownerId, models.tableQueries.users)(_.id)
 
 }
 

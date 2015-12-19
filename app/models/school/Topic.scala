@@ -30,8 +30,7 @@ class Topics(tag: Tag)
   extends Table[Topic](tag, "topics")
   with Columns.Id[Topic]
   with Columns.Title[Topic]
-  with Columns.OptionalOwnerId[Topic]
-  with ForeignKeys.OptionalOwner[Topic] {
+  with Columns.OptionalOwnerId[Topic] {
 
   /**
     * @see [[slick.profile.RelationalTableComponent.Table.*]]
@@ -39,6 +38,8 @@ class Topics(tag: Tag)
   def * =
     (id, title, ownerId).<>(Topic.tupled, Topic.unapply)
 
+  def owner =
+    foreignKey("fk_topic_owner_id", ownerId, models.tableQueries.users)(_.id.?)
 }
 
 object Topics extends ResourceCollection[Topics, Topic] {

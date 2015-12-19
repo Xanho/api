@@ -3,6 +3,7 @@ package models.school
 import java.util.UUID
 
 import models.Helpers.{Columns, ForeignKeys}
+import models.helpers.Ownable
 import play.api.libs.json.{Writes, JsObject, JsValue, Json}
 import slick.driver.MySQLDriver.api._
 import system.helpers.SlickHelper._
@@ -19,9 +20,10 @@ import scala.util.{Failure, Success, Try}
   * @param content The microdegree's content and materials
   */
 case class MicrodegreeRevisionProposal(id: UUID,
+                                       ownerId: UUID,
                                        microdegreeId: UUID,
                                        newRevisionNumber: Int,
-                                       content: String) extends Resource {
+                                       content: String) extends Resource with Ownable {
 
   /**
     * The parent [[Microdegree]] of this revision
@@ -39,11 +41,9 @@ case class MicrodegreeRevisionProposal(id: UUID,
 class MicrodegreeRevisionProposals(tag: Tag)
   extends Table[MicrodegreeRevisionProposal](tag, "microdegree_revision_proposals")
   with Columns.Id[MicrodegreeRevisionProposal]
-  with Columns.AuthorId[MicrodegreeRevisionProposal]
+  with Columns.OwnerId[MicrodegreeRevisionProposal]
   with Columns.MicrodegreeId[MicrodegreeRevisionProposal]
-  with Columns.NewRevisionNumber[MicrodegreeRevisionProposal]
-  with ForeignKeys.Author[MicrodegreeRevisionProposal]
-  with ForeignKeys.Microdegree[MicrodegreeRevisionProposal] {
+  with Columns.NewRevisionNumber[MicrodegreeRevisionProposal] {
 
   /**
     * @see [[MicrodegreeRevisionProposal.content]]
@@ -55,7 +55,13 @@ class MicrodegreeRevisionProposals(tag: Tag)
     * @inheritdoc
     */
   def * =
-    (id, microdegreeId, newRevisionNumber, content).<>(MicrodegreeRevisionProposal.tupled, MicrodegreeRevisionProposal.unapply)
+    (id, ownerId, microdegreeId, newRevisionNumber, content).<>(MicrodegreeRevisionProposal.tupled, MicrodegreeRevisionProposal.unapply)
+
+  def owner =
+    foreignKey("fk_microdegree_revision_proposal_owner_id", ownerId, models.tableQueries.users)(_.id)
+
+  def microdegree =
+    foreignKey("fk_microdegree_revision_proposal_microdegree_id", microdegreeId, tableQueries.microdegrees)(_.id)
 
 }
 
@@ -93,6 +99,7 @@ object MicrodegreeRevisionProposals extends ResourceCollection[MicrodegreeRevisi
               arguments: Map[String, JsValue]) =
     MicrodegreeRevisionProposal(
       uuid,
+      arguments("ownerId").as[UUID],
       arguments("microdegreeId").as[UUID],
       SlickHelper.queryResult(
         MicrodegreeRevisions.tableQuery

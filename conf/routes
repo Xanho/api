@@ -1,9 +1,75 @@
-# Routes
-# This file defines all application routes (Higher priority routes first)
-# ~~~~
+# System Routes
+GET           /                                           controllers.Application.index
 
-# Home page
-GET     /                           controllers.Application.index
+# User Routes
+POST          /users/login                                controllers.User.login
+POST          /users/create                               controllers.User.create
+GET           /users/:id                                  controllers.User.read(id: UUID)
+PUT           /users/:id                                  controllers.User.update(id: UUID)
+DELETE        /users/:id                                  controllers.User.delete(id: UUID)
 
-# Map static resources from the /public folder to the /assets URL path
-GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
+# Project Routes
+POST          /projects/create                            controllers.research.Project.create
+GET           /projects/:id                               controllers.research.Project.read(id: UUID)
+PUT           /projects/:id                               controllers.research.Project.update(id: UUID)
+DELETE        /projects/:id                               controllers.research.Project.delete(id: UUID)
+
+# Project Draft Routes
+POST          /projectDrafts/create                       controllers.research.ProjectDraft.create
+GET           /projectDrafts/:id                          controllers.research.ProjectDraft.read(id: UUID)
+PUT           /projectDrafts/:id                          controllers.research.ProjectDraft.update(id: UUID)
+DELETE        /projectDrafts/:id                          controllers.research.ProjectDraft.delete(id: UUID)
+
+# Critique Routes
+POST          /critiques/create                           controllers.research.Critique.create
+GET           /critiques/:id                              controllers.research.Critique.read(id: UUID)
+PUT           /critiques/:id                              controllers.research.Critique.update(id: UUID)
+DELETE        /critiques/:id                              controllers.research.Critique.delete(id: UUID)
+
+# Peer Review Routes
+POST          /peerReviews/create                         controllers.research.PeerReview.create
+GET           /peerReviews/:id                            controllers.research.PeerReview.read(id: UUID)
+PUT           /peerReviews/:id                            controllers.research.PeerReview.update(id: UUID)
+DELETE        /peerReviews/:id                            controllers.research.PeerReview.delete(id: UUID)
+
+# Microdegree Routes
+POST          /microdegrees/create                        controllers.school.Microdegree.create
+GET           /microdegrees/:id                           controllers.school.Microdegree.read(id: UUID)
+PUT           /microdegrees/:id                           controllers.school.Microdegree.update(id: UUID)
+DELETE        /microdegrees/:id                           controllers.school.Microdegree.delete(id: UUID)
+
+# Microdegree Revision Routes
+POST          /microdegreeRevisions/create                controllers.school.MicrodegreeRevision.create
+GET           /microdegreeRevisions/:id                   controllers.school.MicrodegreeRevision.read(id: UUID)
+PUT           /microdegreeRevisions/:id                   controllers.school.MicrodegreeRevision.update(id: UUID)
+DELETE        /microdegreeRevisions/:id                   controllers.school.MicrodegreeRevision.delete(id: UUID)
+
+# Microdegree Revision Proposal Routes
+POST          /microdegreeRevisionProposals/create        controllers.school.MicrodegreeRevisionProposal.create
+GET           /microdegreeRevisionProposals/:id           controllers.school.MicrodegreeRevisionProposal.read(id: UUID)
+PUT           /microdegreeRevisionProposals/:id           controllers.school.MicrodegreeRevisionProposal.update(id: UUID)
+DELETE        /microdegreeRevisionProposals/:id           controllers.school.MicrodegreeRevisionProposal.delete(id: UUID)
+
+# Topic Routes
+POST          /topics/create                              controllers.school.Topic.create
+GET           /topics/:id                                 controllers.school.Topic.read(id: UUID)
+PUT           /topics/:id                                 controllers.school.Topic.update(id: UUID)
+DELETE        /topics/:id                                 controllers.school.Topic.delete(id: UUID)
+
+# Topic Revision Routes
+POST          /topicRevisions/create                      controllers.school.TopicRevision.create
+GET           /topicRevisions/:id                         controllers.school.TopicRevision.read(id: UUID)
+PUT           /topicRevisions/:id                         controllers.school.TopicRevision.update(id: UUID)
+DELETE        /topicRevisions/:id                         controllers.school.TopicRevision.delete(id: UUID)
+
+# Topic Revision Proposal Routes
+POST          /topicRevisionProposals/create              controllers.school.TopicRevisionProposal.create
+GET           /topicRevisionProposals/:id                 controllers.school.TopicRevisionProposal.read(id: UUID)
+PUT           /topicRevisionProposals/:id                 controllers.school.TopicRevisionProposal.update(id: UUID)
+DELETE        /topicRevisionProposals/:id                 controllers.school.TopicRevisionProposal.delete(id: UUID)
+
+# Top Requirement Routes
+POST          /topicRequirements/create                   controllers.school.TopicRequirement.create
+GET           /topicRequirements/:id                      controllers.school.TopicRequirement.read(id: UUID)
+PUT           /topicRequirements/:id                      controllers.school.TopicRequirement.update(id: UUID)
+DELETE        /topicRequirements/:id                      controllers.school.TopicRequirement.delete(id: UUID)
