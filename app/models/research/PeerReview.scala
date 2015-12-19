@@ -84,7 +84,7 @@ object PeerReviews extends ResourceCollection[PeerReviews, PeerReview] {
   /**
     * @inheritdoc
     */
-  val validaters =
+  val validators =
     Set(
       ("ownerId", true, Set(PropertyValidators.uuid4 _)),
       ("projectDraftId", true, Set(PropertyValidators.uuid4 _)),

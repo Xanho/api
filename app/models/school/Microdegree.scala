@@ -60,7 +60,7 @@ object Microdegrees extends ResourceCollection[Microdegrees, Microdegree] {
   /**
     * @inheritdoc
     */
-  val validaters =
+  val validators =
     Set(
       ("name", true, Set(PropertyValidators.title _)),
       ("ownerId", false, Set(PropertyValidators.uuid4 _))

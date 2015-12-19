@@ -10,7 +10,7 @@ object Settings {
     * Application Name
     */
   val name =
-    "api"
+    "xanho-api"
 
   /**
     * Scala compiler options

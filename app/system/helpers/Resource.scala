@@ -41,10 +41,10 @@ trait ResourceCollection[T <: Table[R] with Columns.Id[R], R <: Resource] {
   implicit def writes: Writes[R]
 
   /**
-    * A set of validaters which are used in [[validateArguments]]
+    * A set of validators which are used in [[validateArguments]]
     * @return A [[Set]] of tuples of (Field Name, Required, Set of validation requirements)
     */
-  def validaters: Set[(String, Boolean, Set[JsValue => Option[Int]])]
+  def validators: Set[(String, Boolean, Set[JsValue => Option[Int]])]
 
 
   /**
@@ -169,17 +169,27 @@ trait ResourceCollection[T <: Table[R] with Columns.Id[R], R <: Resource] {
     * @return A invalid property mapping from a property name to an error status
     */
   def validateArguments(arguments: Map[String, JsValue]): Map[String, Int] =
-    (validaters map {
+    PropertyValidators.validateArguments(arguments, validators)
+
+}
+
+object PropertyValidators {
+
+  /**
+    * Checks the provided arguments, and validates the necessary properties
+    * @param arguments The arguments to be validated
+    * @param validators @see [[ResourceCollection.validators]]
+    * @return A invalid property mapping from a property name to an error status
+    */
+  def validateArguments(arguments: Map[String, JsValue],
+                        validators: Set[(String, Boolean, Set[(JsValue => Option[Int])])]): Map[String, Int] =
+    (validators map {
       case (key: String, required: Boolean, rules: Set[(JsValue => Option[Int])]) =>
         key -> PropertyValidators.validate(key, arguments, required, rules)
     }).toMap collect {
       case (key, Some(value)) =>
         key -> value
     }
-
-}
-
-object PropertyValidators {
 
   /**
     * Validates the given key against the given arguments, using the given set of rules
@@ -301,7 +311,7 @@ object PropertyValidators {
         _.validate[String](minLength[String](2))
           .fold(
             _ => Some(PropertyErrorCodes.TOO_SHORT),
-            _ => s.validate[String](maxLength[String](4))
+            _ => s.validate[String](maxLength[String](255))
               .fold(
                 _ => Some(PropertyErrorCodes.TOO_LONG),
                 p => if ((nonAlphaNumericPattern findAllIn p).isEmpty || (numericPattern findAllIn p).isEmpty)

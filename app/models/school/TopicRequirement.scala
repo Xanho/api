@@ -93,7 +93,7 @@ object TopicRequirements extends ResourceCollection[TopicRequirements, TopicRequ
   /**
     * @inheritdoc
     */
-  val validaters =
+  val validators =
     Set(
       ("microdegreeRevisionProposalId", true, Set(PropertyValidators.uuid4 _)),
       ("topicId", true, Set(PropertyValidators.uuid4 _)),

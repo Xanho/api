@@ -6,7 +6,7 @@ import _root_.play.api.libs.json.{JsObject, JsValue, Json, Writes}
 import com.github.t3hnar.bcrypt._
 import models.Helpers.Columns
 import slick.driver.MySQLDriver.api._
-import system.helpers.{PropertyValidators, Resource, ResourceCollection}
+import system.helpers.{SlickHelper, PropertyValidators, Resource, ResourceCollection}
 
 /**
   * A Xanho User/Member
@@ -14,23 +14,23 @@ import system.helpers.{PropertyValidators, Resource, ResourceCollection}
   * @param firstName The user's first name
   * @param lastName The user's last name
   * @param email The user's email address
-  * @param boxcode The user's boxcode
+  * @param password The user's password
   */
 case class User(id: UUID,
                 firstName: String,
                 lastName: String,
                 email: String,
-                boxcode: String) extends Resource
+                password: String) extends Resource
 
 object UserHelper {
 
   /**
-    * Hashes a given raw boxcode using bcrypt
-    * @param rawBoxcode The raw, plain-text boxcode
-    * @return A bcrypt/hashed boxcode
+    * Hashes a given raw password using bcrypt
+    * @param rawPassword The raw, plain-text password
+    * @return A bcrypt/hashed password
     */
-  def hashBoxcode(rawBoxcode: String): String =
-    rawBoxcode.bcrypt
+  def hashPassword(rawPassword: String): String =
+    rawPassword.bcrypt
 }
 
 /**
@@ -62,14 +62,14 @@ class Users(tag: Tag)
   /**
     * @see [[User.id]]
     */
-  def boxcode =
-    column[String]("boxcode")
+  def password =
+    column[String]("password")
 
   /**
     * @see [[slick.profile.RelationalTableComponent.Table.*]]
     */
   def * =
-    (id, firstName, lastName, email, boxcode).<>(User.tupled, User.unapply)
+    (id, firstName, lastName, email, password).<>(User.tupled, User.unapply)
 }
 
 object Users extends ResourceCollection[Users, User] {
@@ -79,6 +79,19 @@ object Users extends ResourceCollection[Users, User] {
     */
   val tableQuery =
     TableQuery[Users]
+
+  /**
+    * Attempts to authenticate the provided credentials, and if successful, returns the corresponding [[User]]
+    * @param email @see [[User.email]]
+    * @param password @see [[User.password]]
+    * @return An optional [[User]]
+    */
+  def authenticate(email: String,
+                   password: String): Option[User] =
+    SlickHelper.queryResult(
+      tableQueries.users
+      .filter(_.email === email).result.headOption
+    ) filter (user => password.isBcrypted(user.password))
 
   /**
     * @inheritdoc
@@ -97,7 +110,7 @@ object Users extends ResourceCollection[Users, User] {
   /**
     * @inheritdoc
     */
-  val validaters =
+  val validators =
     Set(
       ("firstName", true, Set(PropertyValidators.name _)),
       ("lastName", true, Set(PropertyValidators.name _)),
@@ -118,7 +131,7 @@ object Users extends ResourceCollection[Users, User] {
       arguments("firstName").as[String],
       arguments("lastName").as[String],
       arguments("email").as[String],
-      arguments("boxcode").as[String]
+      UserHelper.hashPassword(arguments("password").as[String])
     )
 
   /**
@@ -134,11 +147,11 @@ object Users extends ResourceCollection[Users, User] {
       arguments.get("firstName")
         .fold(row.firstName)(_.as[String]),
       arguments.get("lastName")
-        .fold(row.firstName)(_.as[String]),
+        .fold(row.lastName)(_.as[String]),
       arguments.get("email")
-        .fold(row.firstName)(_.as[String]),
-      arguments.get("boxcode")
-        .fold(row.firstName)(_.as[String])
+        .fold(row.email)(_.as[String]),
+      arguments.get("password")
+        .fold(row.password)(p => UserHelper.hashPassword(p.as[String]))
     )
   
   /**

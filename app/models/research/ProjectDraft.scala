@@ -83,7 +83,7 @@ object ProjectDrafts extends ResourceCollection[ProjectDrafts, ProjectDraft] {
   /**
     * @inheritdoc
     */
-  val validaters =
+  val validators =
     Set(
       ("ownerId", true, Set(PropertyValidators.uuid4 _)),
       ("projectDraftId", true, Set(PropertyValidators.uuid4 _)),

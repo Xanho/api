@@ -2,17 +2,16 @@ package controllers.helpers
 
 import java.util.UUID
 
-import models.Helpers.Columns
 import _root_.play.api.http.ContentTypes
-import _root_.play.api.libs.json.{Json, JsValue, JsObject}
-import _root_.play.api.mvc.{Result, Controller, Action}
-import _root_.play.api.mvc.Results._
+import _root_.play.api.libs.json.{JsValue, Json}
+import _root_.play.api.mvc.{Action, Controller}
+import models.Helpers.Columns
+import slick.driver.MySQLDriver.api._
 import system.helpers.PropertyValidators.PropertyErrorCodes
 import system.helpers._
-import slick.driver.MySQLDriver.api._
 
 
-trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Controller {
+trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Controller with Secured {
 
   def resourceCollection: ResourceCollection[T, R]
 
@@ -21,18 +20,30 @@ trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Co
     * @return An [[Action]]
     */
   def create =
-    Authorized(None, Set(resourceCollection.canCreate), Set(ContentTypes.JSON))((request: ParsedRequest[_]) =>
-      CRUDResults.create(resourceCollection, request.data)
+    Authorized(None, Set(resourceCollection.canCreate))(parse.json)(request =>
+      resourceCollection.validateArguments(request.data.as[Map[String, JsValue]]) match {
+        case m if m.isEmpty =>
+          resourceCollection.create(request.data.as[Map[String, JsValue]])
+            .fold(InternalServerError(ResponseHelpers.message("Something broke.")))(item =>
+              Ok(Json.toJson(item)(resourceCollection.writes))
+            )
+        case m =>
+          BadRequest(ResponseHelpers.invalidFields(m))
+      }
     )
+
 
   /**
     * An [[Action]] to read the resource with the provided ID in [[resourceCollection]]
     * @param uuid @see [[system.helpers.Resource.id]]
     * @return An [[Action]]
     */
-  def read(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canRead))((_: ParsedRequest[_]) =>
-      CRUDResults.read(uuid, resourceCollection)
+  def read(uuid: String) =
+    Authorized(Some(UUID.fromString(uuid)), Set(resourceCollection.canRead))(request =>
+      resourceCollection.read(UUID.fromString(uuid))
+        .fold(NotFound(ResponseHelpers.message("The resource with ID %s could not be found." format uuid)))(item =>
+          Ok(Json.toJson(item)(resourceCollection.writes))
+        )
     )
 
   /**
@@ -40,9 +51,17 @@ trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Co
     * @param uuid @see [[system.helpers.Resource.id]]
     * @return An [[Action]]
     */
-  def update(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canModify), Set(ContentTypes.JSON))((request: ParsedRequest[_]) =>
-      CRUDResults.update(uuid, resourceCollection, request.data)
+  def update(uuid: String) =
+    Authorized(Some(UUID.fromString(uuid)), Set(resourceCollection.canModify))(parse.json)(request =>
+      resourceCollection.validateArguments(request.data.as[Map[String, JsValue]]) filterNot (_._2 == PropertyErrorCodes.NO_VALUE) match {
+        case m if m.isEmpty =>
+          if (resourceCollection.update(UUID.fromString(uuid), request.data.as[Map[String, JsValue]]))
+            Accepted
+          else
+            InternalServerError(ResponseHelpers.message("Something broke."))
+        case m =>
+          BadRequest(ResponseHelpers.invalidFields(m))
+      }
     )
 
   /**
@@ -50,78 +69,12 @@ trait CRUDController[T <: Table[R] with Columns.Id[R], R <: Resource] extends Co
     * @param uuid @see [[system.helpers.Resource.id]]
     * @return An [[Action]]
     */
-  def delete(uuid: UUID) =
-    Authorized(Some(uuid), Set(resourceCollection.canDelete))((_: ParsedRequest[_]) =>
-      CRUDResults.delete(uuid, resourceCollection)
+  def delete(uuid: String) =
+    Authorized(Some(UUID.fromString(uuid)), Set(resourceCollection.canDelete))(request =>
+      if (resourceCollection.delete(UUID.fromString(uuid)))
+        NoContent
+      else
+        NotFound(ResponseHelpers.message("The resource with ID %s could not be found." format uuid))
     )
-
-
-}
-
-object CRUDResults {
-
-  /**
-    * Creates a resource in the provided [[ResourceCollection]]
-    * @param resourceCollection The [[ResourceCollection]] in which the new object is created
-    * @param data A [[JsObject]] containing the data to use in the creation
-    * @return [[Ok]] or [[InternalServerError]] or [[BadRequest]]
-    */
-  def create[T <: Table[R] with Columns.Id[R], R <: Resource](resourceCollection: ResourceCollection[T, R],
-             data: JsObject): Result =
-    resourceCollection.validateArguments(data.as[Map[String, JsValue]]) match {
-      case m if m.isEmpty =>
-        resourceCollection.create(data.as[Map[String, JsValue]])
-          .fold(InternalServerError(ResponseHelpers.message("Something broke.")))(item =>
-            Ok(Json.toJson(item)(resourceCollection.writes))
-          )
-      case m =>
-        BadRequest(ResponseHelpers.invalidFields(m))
-    }
-
-  /**
-    * Attempts to read the resource with the given uuid in the [[ResourceCollection]]
-    * @param uuid @see [[system.helpers.Resource.id]]
-    * @param resourceCollection The [[ResourceCollection]] to search in
-    * @return [[Ok]] or [[NotFound]]
-    */
-  def read[T <: Table[R] with Columns.Id[R], R <: Resource](uuid: UUID,
-           resourceCollection: ResourceCollection[T, R]): Result =
-    resourceCollection.read(uuid)
-      .fold(NotFound(ResponseHelpers.message("The resource with ID %s could not be found." format uuid)))(item =>
-        Ok(Json.toJson(item)(resourceCollection.writes))
-      )
-
-  /**
-    * Updates a resource with the given uuid in the [[ResourceCollection]]
-    * @param uuid @see [[system.helpers.Resource.id]]
-    * @param resourceCollection The [[ResourceCollection]] to search/update in
-    * @param data A [[JsObject]] containing the data to use in the update
-    * @return [[Accepted]] or [[InternalServerError]] or [[BadRequest]]
-    */
-  def update[T <: Table[R] with Columns.Id[R], R <: Resource](uuid: UUID,
-             resourceCollection: ResourceCollection[T, R],
-             data: JsObject): Result =
-    resourceCollection.validateArguments(data.as[Map[String, JsValue]]) filterNot (_._2 == PropertyErrorCodes.NO_VALUE) match {
-      case m if m.isEmpty =>
-        if(resourceCollection.update(uuid, data.as[Map[String, JsValue]]))
-          Accepted
-        else
-          InternalServerError(ResponseHelpers.message("Something broke."))
-      case m =>
-        BadRequest(ResponseHelpers.invalidFields(m))
-    }
-
-  /**
-    * Deletes the resource with the given uuid in the [[ResourceCollection]]
-    * @param uuid @see [[system.helpers.Resource.id]]
-    * @param resourceCollection The [[ResourceCollection]] to search/delete in
-    * @return [[NoContent]] or [[NotFound]]
-    */
-  def delete[T <: Table[R] with Columns.Id[R], R <: Resource](uuid: UUID,
-             resourceCollection: ResourceCollection[T, R]): Result =
-    if(resourceCollection.delete(uuid))
-      NoContent
-    else
-      NotFound(ResponseHelpers.message("The resource with ID %s could not be found." format uuid))
 
 }
