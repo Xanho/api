@@ -336,6 +336,24 @@ object PropertyValidators {
       )
 
   /**
+    * Validates a score field, meaning the integer is between 0 and 100
+    * @param s The given input
+    * @return An optional error code
+    */
+  def score(s: JsValue): Option[Int] =
+    integer(s)
+      .fold(
+        s.validate(__.read(min[Int](0)))
+          .fold(
+            _ => Some(PropertyErrorCodes.TOO_SMALL),
+            _ => s.validate(__.read(max[Int](100)))
+              .fold(
+                _ => None,
+                _ => Some(PropertyErrorCodes.TOO_LARGE))
+          )
+      )(Some(_))
+
+  /**
     * Validates a UUID4
     * @param s The given input
     * @return An optional error code
@@ -361,7 +379,7 @@ object PropertyValidators {
     """([0-9])""".r
 
   private val uuid4Pattern =
-    """[0-9a-f]{32}\Z""".r
+    """[0-9a-f\-]{36}""".r
 
   object PropertyErrorCodes {
 
@@ -375,6 +393,8 @@ object PropertyValidators {
     val NOT_UUID = 7
     val NOT_NAME = 8
     val NOT_TITLE = 9
+    val TOO_SMALL = 10
+    val TOO_LARGE = 11
   }
 
 }
